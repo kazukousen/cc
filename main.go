@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
+	"strings"
 )
 
+var userIn string
 var in string
 
 type tokenKind int
@@ -38,13 +39,21 @@ func tokenize() []*token {
 
 		if in[0] >= '0' && in[0] <= '9' {
 			n := toInt()
-			tokens = append(tokens, &token{kind: tokenKindNumber, num: n, val: strconv.Itoa(n)})
+			tokens = append(tokens, &token{kind: tokenKindNumber, num: n})
 			continue
 		}
 
-		panic("unexpected character: " + string(in[0]))
+		errorAt("unexpected character: " + string(in[0]))
 	}
 	return tokens
+}
+
+func errorAt(msg string) {
+	n := len(userIn) - len(in)
+	_, _ = fmt.Fprintln(os.Stderr, userIn)
+	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat(" ", n), "^")
+	_, _ = fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
 }
 
 func main() {
@@ -53,6 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	userIn = os.Args[1]
 	in = os.Args[1]
 
 	tokens := tokenize()
@@ -73,7 +83,9 @@ main:
 			fmt.Printf("	sub rax, %d\n", tokens[1].num)
 			tokens = tokens[2:]
 		default:
-			panic("unexpected token: " + tokens[0].val)
+			_, _ = fmt.Fprintln(os.Stderr, tokens)
+			_, _ = fmt.Fprintln(os.Stderr, "[Error] Unexpected token:", tokens[0])
+			os.Exit(1)
 		}
 	}
 

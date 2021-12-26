@@ -4,6 +4,10 @@ assert() {
   input="$2"
 
   ./cc "$input" > tmp.s
+  if [ "$?" != 0 ]; then
+    echo "compile failed"
+    exit 1
+  fi
   cc -o tmp tmp.s
   ./tmp
   actual="$?"
