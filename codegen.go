@@ -14,26 +14,19 @@ func gen(n *node) {
 	case nodeKindReturn:
 		gen(n.lhs)
 		fmt.Printf("	pop rax\n")
-		fmt.Printf("	mov rsp, rbp\n")
-		fmt.Printf("	pop rbp\n")
-		fmt.Printf("	ret\n")
+		fmt.Printf("	jmp .Lreturn\n")
 		return
 	case nodeKindNum:
 		fmt.Printf("	push %d\n", n.num)
 		return
-	case nodeKindLocal:
-		genLocal(n)
-		fmt.Printf("	pop rax\n")
-		fmt.Printf("	mov rax, [rax]\n")
-		fmt.Printf("	push rax\n")
+	case nodeKindVar:
+		genAddr(n)
+		load()
 		return
 	case nodeKindAssign:
-		genLocal(n.lhs)
+		genAddr(n.lhs)
 		gen(n.rhs)
-		fmt.Printf("	pop rdi\n")
-		fmt.Printf("	pop rax\n")
-		fmt.Printf("	mov [rax], rdi\n")
-		fmt.Printf("	push rdi\n")
+		store()
 		return
 	case nodeKindIf:
 		gen(n.cond)
@@ -89,6 +82,13 @@ func gen(n *node) {
 		fmt.Printf("	call %s\n", n.name)
 		fmt.Printf("	push rax\n")
 		return
+	case nodeKindAddr:
+		genAddr(n.lhs)
+		return
+	case nodeKindDeref:
+		gen(n.lhs)
+		load()
+		return
 	}
 
 	if n.lhs != nil {
@@ -132,12 +132,28 @@ func gen(n *node) {
 	fmt.Printf("	push rax\n")
 }
 
-func genLocal(n *node) {
-	if n.kind != nodeKindLocal {
-		_, _ = fmt.Fprintln(os.Stderr, "left side of assignment is not variable")
+func genAddr(n *node) {
+	switch n.kind {
+	case nodeKindVar:
+		fmt.Printf("	lea rax, [rbp%d]\n", n.variable.offset)
+		fmt.Printf("	push rax\n")
+	case nodeKindDeref:
+		gen(n.lhs)
+	default:
+		_, _ = fmt.Fprintln(os.Stderr, "Not a variable")
 		os.Exit(1)
 	}
-	fmt.Printf("	mov rax, rbp\n")
-	fmt.Printf("	sub rax, %d\n", n.offset)
+}
+
+func load() {
+	fmt.Printf("	pop rax\n")
+	fmt.Printf("	mov rax, [rax]\n")
 	fmt.Printf("	push rax\n")
+}
+
+func store() {
+	fmt.Printf("	pop rdi\n")
+	fmt.Printf("	pop rax\n")
+	fmt.Printf("	mov [rax], rdi\n")
+	fmt.Printf("	push rdi\n")
 }

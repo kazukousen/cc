@@ -45,12 +45,14 @@ const (
 	nodeKindLt     // <
 	nodeKindLe     // <=
 	nodeKindAssign // =
-	nodeKindLocal
+	nodeKindVar
 	nodeKindNum
 	nodeKindBlock
 	nodeKindIf
 	nodeKindFor
 	nodeKindCall
+	nodeKindAddr
+	nodeKindDeref
 	nodeKindReturn
 )
 
@@ -60,8 +62,8 @@ type node struct {
 	lhs *node
 	rhs *node
 
-	num    int
-	offset int
+	num      int
+	variable *obj
 
 	ini  *node
 	cond *node
@@ -109,13 +111,14 @@ func newNodeFor(ini *node, cond *node, step *node, then *node) *node {
 	}
 }
 
-type local struct {
+type obj struct {
 	name   string
 	offset int
 }
 
-func findLocal(name string) *local {
-	for _, lv := range locals {
+func findLocal(name string) *obj {
+	for i := range locals {
+		lv := locals[i]
 		if lv.name == name {
 			return lv
 		}
@@ -127,21 +130,19 @@ func newNodeLocal(name string) *node {
 
 	if lv := findLocal(name); lv != nil {
 		return &node{
-			kind:   nodeKindLocal,
-			offset: lv.offset,
+			kind:     nodeKindVar,
+			variable: lv,
 		}
 	}
 
-	nextOffset := 0
-	if len(locals) > 0 {
-		nextOffset = locals[len(locals)-1].offset + 8
+	variable := &obj{
+		name: name,
 	}
-
-	locals = append(locals, &local{name: name, offset: nextOffset})
+	locals = append(locals, variable)
 
 	return &node{
-		kind:   nodeKindLocal,
-		offset: nextOffset,
+		kind:     nodeKindVar,
+		variable: variable,
 	}
 }
 
@@ -292,6 +293,12 @@ func unary() *node {
 		return newNode(nodeKindSub, newNodeNum(0), unary())
 	case consume("+"):
 		return unary()
+	case consume("&"):
+		ret := unary()
+		return newNode(nodeKindAddr, ret, nil)
+	case consume("*"):
+		ret := unary()
+		return newNode(nodeKindDeref, ret, nil)
 	default:
 		return primary()
 	}
