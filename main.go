@@ -32,7 +32,7 @@ func tokenize() []*token {
 			continue
 		}
 
-		if in[0] == '+' || in[0] == '-' {
+		if in[0] == '+' || in[0] == '-' || in[0] == '*' || in[0] == '/' || in[0] == '(' || in[0] == ')' {
 			tokens = append(tokens, &token{kind: tokenKindReserved, val: string(in[0])})
 			in = in[1:]
 			continue
@@ -65,6 +65,13 @@ func consume(c string) bool {
 	return false
 }
 
+func expect(c string) {
+	if !consume(c) {
+		_, _ = fmt.Fprintln(os.Stderr, "Unexpected token:", tokens[0].val)
+		os.Exit(1)
+	}
+}
+
 func advance() {
 	tokens = tokens[1:]
 }
@@ -74,6 +81,8 @@ type nodeKind int
 const (
 	nodeKindAdd nodeKind = iota
 	nodeKindSub
+	nodeKindMul
+	nodeKindDiv
 	nodeKindNum
 )
 
@@ -100,17 +109,40 @@ func newNodeNum(num int) *node {
 }
 
 func expr() *node {
-	ret := num()
+	ret := mul()
 	for {
 		switch {
 		case consume("+"):
-			ret = newNode(nodeKindAdd, ret, num())
+			ret = newNode(nodeKindAdd, ret, mul())
 		case consume("-"):
-			ret = newNode(nodeKindSub, ret, num())
+			ret = newNode(nodeKindSub, ret, mul())
 		default:
 			return ret
 		}
 	}
+}
+
+func mul() *node {
+	ret := primary()
+	for {
+		switch {
+		case consume("*"):
+			ret = newNode(nodeKindMul, ret, primary())
+		case consume("/"):
+			ret = newNode(nodeKindDiv, ret, primary())
+		default:
+			return ret
+		}
+	}
+}
+
+func primary() *node {
+	if consume("(") {
+		ret := expr()
+		expect(")")
+		return ret
+	}
+	return num()
 }
 
 func num() *node {
@@ -141,6 +173,11 @@ func gen(n *node) {
 		fmt.Printf("	add rax,rdi\n")
 	case nodeKindSub:
 		fmt.Printf("	sub rax,rdi\n")
+	case nodeKindMul:
+		fmt.Printf("	imul rax,rdi\n")
+	case nodeKindDiv:
+		fmt.Printf("	cqo\n")
+		fmt.Printf("	idiv rdi\n")
 	}
 
 	fmt.Printf("	push rax\n")

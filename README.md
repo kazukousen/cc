@@ -2,5 +2,7 @@
 ## Grammars
 
 ```
-expr = num ("+" num | "-" num)*
+expr    = mul ("+" mul | "-" mul)*
+mul     = primary ("*" primary | "/" primary)*
+primary = num | "(" expr ")"
 ```
