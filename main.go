@@ -123,16 +123,27 @@ func expr() *node {
 }
 
 func mul() *node {
-	ret := primary()
+	ret := unary()
 	for {
 		switch {
 		case consume("*"):
-			ret = newNode(nodeKindMul, ret, primary())
+			ret = newNode(nodeKindMul, ret, unary())
 		case consume("/"):
-			ret = newNode(nodeKindDiv, ret, primary())
+			ret = newNode(nodeKindDiv, ret, unary())
 		default:
 			return ret
 		}
+	}
+}
+
+func unary() *node {
+	switch {
+	case consume("-"):
+		return newNode(nodeKindSub, newNodeNum(0), unary())
+	case consume("+"):
+		return unary()
+	default:
+		return primary()
 	}
 }
 
