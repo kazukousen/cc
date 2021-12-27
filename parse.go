@@ -47,15 +47,22 @@ const (
 	nodeKindAssign // =
 	nodeKindLocal
 	nodeKindNum
+	nodeKindIf
 	nodeKindReturn
 )
 
 type node struct {
-	kind   nodeKind
-	lhs    *node
-	rhs    *node
+	kind nodeKind
+
+	lhs *node
+	rhs *node
+
 	num    int
 	offset int
+
+	cond *node
+	then *node
+	els  *node
 }
 
 func newNode(kind nodeKind, left *node, right *node) *node {
@@ -70,6 +77,15 @@ func newNodeNum(num int) *node {
 	return &node{
 		kind: nodeKindNum,
 		num:  num,
+	}
+}
+
+func newNodeIf(cond *node, then *node, els *node) *node {
+	return &node{
+		kind: nodeKindIf,
+		cond: cond,
+		then: then,
+		els:  els,
 	}
 }
 
@@ -116,14 +132,26 @@ func program() {
 }
 
 func stmt() *node {
-	var ret *node
 	if consume("return") {
-		ret = newNode(nodeKindReturn, expr(), nil)
+		ret := newNode(nodeKindReturn, expr(), nil)
+		expect(";")
+		return ret
+	} else if consume("if") {
+		expect("(")
+		cond := expr()
+		expect(")")
+		then := stmt()
+		if consume("else") {
+			els := stmt()
+			return newNodeIf(cond, then, els)
+		} else {
+			return newNodeIf(cond, then, nil)
+		}
 	} else {
-		ret = expr()
+		ret := expr()
+		expect(";")
+		return ret
 	}
-	expect(";")
-	return ret
 }
 
 func expr() *node {

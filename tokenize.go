@@ -13,6 +13,7 @@ const (
 	tokenKindNumber
 	tokenKindIdent
 	tokenKindReturn
+	tokenKindIf
 )
 
 type token struct {
@@ -32,6 +33,8 @@ func isDigit() bool {
 func identifierToken(val string) *token {
 	if val == "return" {
 		return &token{kind: tokenKindReturn, val: val}
+	} else if val == "if" {
+		return &token{kind: tokenKindIf, val: val}
 	}
 	return &token{kind: tokenKindIdent, val: val}
 }

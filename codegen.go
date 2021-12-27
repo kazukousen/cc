@@ -5,6 +5,8 @@ import (
 	"os"
 )
 
+var label = 0
+
 func gen(n *node) {
 	switch n.kind {
 	case nodeKindReturn:
@@ -30,6 +32,25 @@ func gen(n *node) {
 		fmt.Printf("	pop rax\n")
 		fmt.Printf("	mov [rax], rdi\n")
 		fmt.Printf("	push rdi\n")
+		return
+	case nodeKindIf:
+		gen(n.cond)
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	cmp rax, 0\n")
+
+		if n.els != nil {
+			fmt.Printf("	je .Lelse%d\n", label)
+			gen(n.then)
+			fmt.Printf("	jmp .Lend%d:\n", label)
+			fmt.Printf(".Lelse%d:\n", label)
+			gen(n.els)
+			fmt.Printf(".Lend%d:\n", label)
+		} else {
+			fmt.Printf("	je .Lend%d\n", label)
+			gen(n.then)
+			fmt.Printf(".Lend%d:\n", label)
+		}
+		label++
 		return
 	}
 
