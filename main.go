@@ -8,6 +8,7 @@ import (
 
 var userIn string
 var in string
+var tokens []*token
 
 type tokenKind int
 
@@ -56,6 +57,18 @@ func errorAt(msg string) {
 	os.Exit(1)
 }
 
+func consume(c string) bool {
+	if tokens[0].val == c {
+		tokens = tokens[1:]
+		return true
+	}
+	return false
+}
+
+func advance() {
+	tokens = tokens[1:]
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		_, _ = fmt.Fprintf(os.Stderr, "the number of arguments is insufficient\n")
@@ -65,7 +78,7 @@ func main() {
 	userIn = os.Args[1]
 	in = os.Args[1]
 
-	tokens := tokenize()
+	tokens = tokenize()
 
 	fmt.Printf(`.intel_syntax noprefix
 .globl main
@@ -75,13 +88,13 @@ main:
 	tokens = tokens[1:]
 
 	for len(tokens) > 0 {
-		switch tokens[0].val {
-		case "+":
-			fmt.Printf("	add rax, %d\n", tokens[1].num)
-			tokens = tokens[2:]
-		case "-":
-			fmt.Printf("	sub rax, %d\n", tokens[1].num)
-			tokens = tokens[2:]
+		switch {
+		case consume("+"):
+			fmt.Printf("	add rax, %d\n", tokens[0].num)
+			advance()
+		case consume("-"):
+			fmt.Printf("	sub rax, %d\n", tokens[0].num)
+			advance()
 		default:
 			_, _ = fmt.Fprintln(os.Stderr, tokens)
 			_, _ = fmt.Fprintln(os.Stderr, "[Error] Unexpected token:", tokens[0])
