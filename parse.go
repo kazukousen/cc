@@ -24,7 +24,7 @@ func consumeIdent() *token {
 
 func expect(c string) {
 	if !consume(c) {
-		_, _ = fmt.Fprintln(os.Stderr, "Unexpected token:", tokens[0].val)
+		_, _ = fmt.Fprintln(os.Stderr, "Unexpected token:", tokens[0].val, "want:", c)
 		os.Exit(1)
 	}
 }
@@ -49,7 +49,7 @@ const (
 	nodeKindNum
 	nodeKindBlock
 	nodeKindIf
-	nodeKindWhile
+	nodeKindFor
 	nodeKindReturn
 )
 
@@ -62,7 +62,9 @@ type node struct {
 	num    int
 	offset int
 
+	ini  *node
 	cond *node
+	step *node
 	then *node
 	els  *node
 
@@ -84,12 +86,22 @@ func newNodeNum(num int) *node {
 	}
 }
 
-func newNodeControl(kind nodeKind, cond *node, then *node, els *node) *node {
+func newNodeIf(cond *node, then *node, els *node) *node {
 	return &node{
-		kind: kind,
+		kind: nodeKindIf,
 		cond: cond,
 		then: then,
 		els:  els,
+	}
+}
+
+func newNodeFor(ini *node, cond *node, step *node, then *node) *node {
+	return &node{
+		kind: nodeKindFor,
+		ini:  ini,
+		cond: cond,
+		step: step,
+		then: then,
 	}
 }
 
@@ -150,6 +162,8 @@ func stmt() *node {
 		return ifStmt()
 	} else if consume("while") {
 		return whileStmt()
+	} else if consume("for") {
+		return forStmt()
 	} else {
 		ret := expr()
 		expect(";")
@@ -164,9 +178,9 @@ func ifStmt() *node {
 	then := stmt()
 	if consume("else") {
 		els := stmt()
-		return newNodeControl(nodeKindIf, cond, then, els)
+		return newNodeIf(cond, then, els)
 	} else {
-		return newNodeControl(nodeKindIf, cond, then, nil)
+		return newNodeIf(cond, then, nil)
 	}
 }
 
@@ -175,7 +189,25 @@ func whileStmt() *node {
 	cond := expr()
 	expect(")")
 	then := stmt()
-	return newNodeControl(nodeKindWhile, cond, then, nil)
+	return newNodeFor(nil, cond, nil, then)
+}
+
+func forStmt() *node {
+	expect("(")
+	var ini *node
+	for !consume(";") {
+		ini = expr()
+	}
+	var cond *node
+	for !consume(";") {
+		cond = expr()
+	}
+	var step *node
+	for !consume(")") {
+		step = expr()
+	}
+	then := stmt()
+	return newNodeFor(ini, cond, step, then)
 }
 
 func expr() *node {

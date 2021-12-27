@@ -52,13 +52,21 @@ func gen(n *node) {
 		}
 		label++
 		return
-	case nodeKindWhile:
+	case nodeKindFor:
+		if n.ini != nil {
+			gen(n.ini)
+		}
 		fmt.Printf(".Lbegin%d:\n", label)
-		gen(n.cond)
-		fmt.Printf("	pop rax\n")
-		fmt.Printf("	cmp rax, 0\n")
-		fmt.Printf("	je .Lend%d\n", label)
+		if n.cond != nil {
+			gen(n.cond)
+			fmt.Printf("	pop rax\n")
+			fmt.Printf("	cmp rax, 0\n")
+			fmt.Printf("	je .Lend%d\n", label)
+		}
 		gen(n.then)
+		if n.step != nil {
+			gen(n.step)
+		}
 		fmt.Printf("	jmp .Lbegin%d\n", label)
 		fmt.Printf(".Lend%d:\n", label)
 	case nodeKindBlock:
