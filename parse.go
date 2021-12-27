@@ -65,10 +65,39 @@ func newNode(kind nodeKind, left *node, right *node) *node {
 	}
 }
 
+type local struct {
+	name   string
+	offset int
+}
+
+func findLocal(name string) *local {
+	for _, lv := range locals {
+		if lv.name == name {
+			return lv
+		}
+	}
+	return nil
+}
+
 func newNodeLocal(name string) *node {
+
+	if lv := findLocal(name); lv != nil {
+		return &node{
+			kind:   nodeKindLocal,
+			offset: lv.offset,
+		}
+	}
+
+	nextOffset := 0
+	if len(locals) > 0 {
+		nextOffset = locals[len(locals)-1].offset + 8
+	}
+
+	locals = append(locals, &local{name: name, offset: nextOffset})
+
 	return &node{
 		kind:   nodeKindLocal,
-		offset: int(name[0]-'a'+1) * 8,
+		offset: nextOffset,
 	}
 }
 

@@ -20,6 +20,14 @@ type token struct {
 	num  int
 }
 
+func isAlpha() bool {
+	return (in[0] >= 'a' && in[0] <= 'z') || (in[0] >= 'A' && in[0] <= 'Z')
+}
+
+func isDigit() bool {
+	return in[0] >= '0' && in[0] <= '9'
+}
+
 func tokenize() {
 	for len(in) > 0 {
 
@@ -29,8 +37,13 @@ func tokenize() {
 		}
 
 		if in[0] >= 'a' && in[0] <= 'z' {
-			tokens = append(tokens, &token{kind: tokenKindIdent, val: string(in[0])})
+			name := in[0:1]
 			in = in[1:]
+			for len(in) > 0 && (isAlpha() || isDigit()) {
+				name += in[0:1]
+				in = in[1:]
+			}
+			tokens = append(tokens, &token{kind: tokenKindIdent, val: name})
 			continue
 		}
 
@@ -45,7 +58,7 @@ func tokenize() {
 			continue
 		}
 
-		if in[0] >= '0' && in[0] <= '9' {
+		if isDigit() {
 			n := toInt()
 			tokens = append(tokens, &token{kind: tokenKindNumber, num: n})
 			continue

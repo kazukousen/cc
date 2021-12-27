@@ -9,6 +9,7 @@ var userIn string
 var in string
 var tokens []*token
 var code []*node
+var locals []*local
 
 func main() {
 	if len(os.Args) != 2 {
