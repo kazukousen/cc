@@ -28,7 +28,7 @@ func tokenize() {
 			continue
 		}
 
-		if in[0] >= 'a' && in[1] <= 'z' {
+		if in[0] >= 'a' && in[0] <= 'z' {
 			tokens = append(tokens, &token{kind: tokenKindIdent, val: string(in[0])})
 			in = in[1:]
 			continue
