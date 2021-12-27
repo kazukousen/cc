@@ -3,7 +3,7 @@
 
 ```
 program    = stmt*
-stmt       = expr ";" | returnStmt | ifStmt
+stmt       = expr ";" | "{ stmt* "}" | returnStmt | ifStmt
 returnStmt = "return" expr ";"
 ifStmt     = "if" "(" expr ")" stmt ("else" stmt)?
 expr       = assign

@@ -41,7 +41,7 @@ func gen(n *node) {
 		if n.els != nil {
 			fmt.Printf("	je .Lelse%d\n", label)
 			gen(n.then)
-			fmt.Printf("	jmp .Lend%d:\n", label)
+			fmt.Printf("	jmp .Lend%d\n", label)
 			fmt.Printf(".Lelse%d:\n", label)
 			gen(n.els)
 			fmt.Printf(".Lend%d:\n", label)
@@ -51,6 +51,11 @@ func gen(n *node) {
 			fmt.Printf(".Lend%d:\n", label)
 		}
 		label++
+		return
+	case nodeKindBlock:
+		for _, s := range n.code {
+			gen(s)
+		}
 		return
 	}
 

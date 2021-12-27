@@ -47,6 +47,7 @@ const (
 	nodeKindAssign // =
 	nodeKindLocal
 	nodeKindNum
+	nodeKindBlock
 	nodeKindIf
 	nodeKindReturn
 )
@@ -63,6 +64,8 @@ type node struct {
 	cond *node
 	then *node
 	els  *node
+
+	code []*node
 }
 
 func newNode(kind nodeKind, left *node, right *node) *node {
@@ -135,6 +138,12 @@ func stmt() *node {
 	if consume("return") {
 		ret := newNode(nodeKindReturn, expr(), nil)
 		expect(";")
+		return ret
+	} else if consume("{") {
+		ret := &node{kind: nodeKindBlock, code: []*node{}}
+		for !consume("}") {
+			ret.code = append(ret.code, stmt())
+		}
 		return ret
 	} else if consume("if") {
 		expect("(")
