@@ -50,6 +50,7 @@ const (
 	nodeKindBlock
 	nodeKindIf
 	nodeKindFor
+	nodeKindCall
 	nodeKindReturn
 )
 
@@ -69,6 +70,8 @@ type node struct {
 	els  *node
 
 	code []*node
+
+	name string
 }
 
 func newNode(kind nodeKind, left *node, right *node) *node {
@@ -301,10 +304,20 @@ func primary() *node {
 	}
 
 	if tok := consumeIdent(); tok != nil {
-		return newNodeLocal(tok.val)
+		if consume("(") {
+			return call(tok.val)
+		} else {
+			return newNodeLocal(tok.val)
+		}
 	}
 
 	return num()
+}
+
+func call(name string) *node {
+	for !consume(")") {
+	}
+	return &node{kind: nodeKindCall, name: name}
 }
 
 func num() *node {

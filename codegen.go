@@ -74,6 +74,10 @@ func gen(n *node) {
 			gen(s)
 		}
 		return
+	case nodeKindCall:
+		fmt.Printf("	call %s\n", n.name)
+		fmt.Printf("	push rax\n")
+		return
 	}
 
 	if n.lhs != nil {
