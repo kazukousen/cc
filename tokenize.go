@@ -11,6 +11,7 @@ type tokenKind int
 const (
 	tokenKindReserved tokenKind = iota
 	tokenKindNumber
+	tokenKindIdent
 )
 
 type token struct {
@@ -19,8 +20,7 @@ type token struct {
 	num  int
 }
 
-func tokenize() []*token {
-	var tokens []*token
+func tokenize() {
 	for len(in) > 0 {
 
 		if in[0] == ' ' {
@@ -28,7 +28,13 @@ func tokenize() []*token {
 			continue
 		}
 
-		if strings.Contains("+-*/()<>=!", string(in[0])) {
+		if in[0] >= 'a' && in[1] <= 'z' {
+			tokens = append(tokens, &token{kind: tokenKindIdent, val: string(in[0])})
+			in = in[1:]
+			continue
+		}
+
+		if strings.Contains("+-*/()<>=!;", string(in[0])) {
 			if len(in) > 1 && (in[0:2] == "<=" || in[0:2] == ">=" || in[0:2] == "==" || in[0:2] == "!=") {
 				tokens = append(tokens, &token{kind: tokenKindReserved, val: in[0:2]})
 				in = in[2:]
@@ -47,7 +53,6 @@ func tokenize() []*token {
 
 		errorAt("unexpected character: " + string(in[0]))
 	}
-	return tokens
 }
 
 func errorAt(msg string) {

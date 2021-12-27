@@ -1,11 +1,28 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 func gen(n *node) {
-
-	if n.kind == nodeKindNum {
+	switch n.kind {
+	case nodeKindNum:
 		fmt.Printf("	push %d\n", n.num)
+		return
+	case nodeKindLocal:
+		genLocal(n)
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	mov rax,[rax]\n")
+		fmt.Printf("	push rax\n")
+		return
+	case nodeKindAssign:
+		genLocal(n.lhs)
+		gen(n.rhs)
+		fmt.Printf("	pop rdi\n")
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	mov [rax],rdi\n")
+		fmt.Printf("	push rdi\n")
 		return
 	}
 
@@ -47,5 +64,15 @@ func gen(n *node) {
 		fmt.Printf("	movzb rax,al\n")
 	}
 
+	fmt.Printf("	push rax\n")
+}
+
+func genLocal(n *node) {
+	if n.kind != nodeKindLocal {
+		_, _ = fmt.Fprintln(os.Stderr, "left side of assignment is not variable")
+		os.Exit(1)
+	}
+	fmt.Printf("	mov rax,rbp\n")
+	fmt.Printf("	sub rax,%d\n", n.offset)
 	fmt.Printf("	push rax\n")
 }

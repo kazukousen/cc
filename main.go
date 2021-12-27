@@ -8,6 +8,7 @@ import (
 var userIn string
 var in string
 var tokens []*token
+var code []*node
 
 func main() {
 	if len(os.Args) != 2 {
@@ -19,15 +20,24 @@ func main() {
 
 	in = os.Args[1]
 
-	tokens = tokenize()
+	tokenize()
+	program()
 
 	fmt.Printf(`.intel_syntax noprefix
 .globl main
 main:
+	push rbp
+	mov rbp, rsp
+	sub rsp, 208
 `)
 
-	gen(expr())
+	for _, c := range code {
+		gen(c)
+		fmt.Printf("	pop rax\n")
+	}
 
-	fmt.Printf("	pop rax\n")
-	fmt.Printf("	ret\n")
+	fmt.Printf(`	mov rsp, rbp
+	pop rbp
+	ret
+`)
 }

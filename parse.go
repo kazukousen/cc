@@ -13,6 +13,15 @@ func consume(c string) bool {
 	return false
 }
 
+func consumeIdent() *token {
+	if len(tokens) > 0 && tokens[0].kind == tokenKindIdent {
+		tok := tokens[0]
+		tokens = tokens[1:]
+		return tok
+	}
+	return nil
+}
+
 func expect(c string) {
 	if !consume(c) {
 		_, _ = fmt.Fprintln(os.Stderr, "Unexpected token:", tokens[0].val)
@@ -31,18 +40,21 @@ const (
 	nodeKindSub
 	nodeKindMul
 	nodeKindDiv
-	nodeKindEq // ==
-	nodeKindNe // !=
-	nodeKindLt // <
-	nodeKindLe // <=
+	nodeKindEq     // ==
+	nodeKindNe     // !=
+	nodeKindLt     // <
+	nodeKindLe     // <=
+	nodeKindAssign // =
+	nodeKindLocal
 	nodeKindNum
 )
 
 type node struct {
-	kind nodeKind
-	lhs  *node
-	rhs  *node
-	num  int
+	kind   nodeKind
+	lhs    *node
+	rhs    *node
+	num    int
+	offset int
 }
 
 func newNode(kind nodeKind, left *node, right *node) *node {
@@ -53,6 +65,13 @@ func newNode(kind nodeKind, left *node, right *node) *node {
 	}
 }
 
+func newNodeLocal(name string) *node {
+	return &node{
+		kind:   nodeKindLocal,
+		offset: int(name[0]-'a'+1) * 8,
+	}
+}
+
 func newNodeNum(num int) *node {
 	return &node{
 		kind: nodeKindNum,
@@ -60,8 +79,28 @@ func newNodeNum(num int) *node {
 	}
 }
 
+func program() {
+	for len(tokens) > 0 {
+		code = append(code, stmt())
+	}
+}
+
+func stmt() *node {
+	ret := expr()
+	expect(";")
+	return ret
+}
+
 func expr() *node {
-	return equality()
+	return assign()
+}
+
+func assign() *node {
+	ret := equality()
+	if consume("=") {
+		ret = newNode(nodeKindAssign, ret, assign())
+	}
+	return ret
 }
 
 func equality() *node {
@@ -141,6 +180,11 @@ func primary() *node {
 		expect(")")
 		return ret
 	}
+
+	if tok := consumeIdent(); tok != nil {
+		return newNodeLocal(tok.val)
+	}
+
 	return num()
 }
 
