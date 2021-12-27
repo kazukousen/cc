@@ -49,6 +49,7 @@ const (
 	nodeKindNum
 	nodeKindBlock
 	nodeKindIf
+	nodeKindWhile
 	nodeKindReturn
 )
 
@@ -83,9 +84,9 @@ func newNodeNum(num int) *node {
 	}
 }
 
-func newNodeIf(cond *node, then *node, els *node) *node {
+func newNodeControl(kind nodeKind, cond *node, then *node, els *node) *node {
 	return &node{
-		kind: nodeKindIf,
+		kind: kind,
 		cond: cond,
 		then: then,
 		els:  els,
@@ -146,21 +147,35 @@ func stmt() *node {
 		}
 		return ret
 	} else if consume("if") {
-		expect("(")
-		cond := expr()
-		expect(")")
-		then := stmt()
-		if consume("else") {
-			els := stmt()
-			return newNodeIf(cond, then, els)
-		} else {
-			return newNodeIf(cond, then, nil)
-		}
+		return ifStmt()
+	} else if consume("while") {
+		return whileStmt()
 	} else {
 		ret := expr()
 		expect(";")
 		return ret
 	}
+}
+
+func ifStmt() *node {
+	expect("(")
+	cond := expr()
+	expect(")")
+	then := stmt()
+	if consume("else") {
+		els := stmt()
+		return newNodeControl(nodeKindIf, cond, then, els)
+	} else {
+		return newNodeControl(nodeKindIf, cond, then, nil)
+	}
+}
+
+func whileStmt() *node {
+	expect("(")
+	cond := expr()
+	expect(")")
+	then := stmt()
+	return newNodeControl(nodeKindWhile, cond, then, nil)
 }
 
 func expr() *node {

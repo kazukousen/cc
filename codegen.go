@@ -52,6 +52,15 @@ func gen(n *node) {
 		}
 		label++
 		return
+	case nodeKindWhile:
+		fmt.Printf(".Lbegin%d:\n", label)
+		gen(n.cond)
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	cmp rax, 0\n")
+		fmt.Printf("	je .Lend%d\n", label)
+		gen(n.then)
+		fmt.Printf("	jmp .Lbegin%d\n", label)
+		fmt.Printf(".Lend%d:\n", label)
 	case nodeKindBlock:
 		for _, s := range n.code {
 			gen(s)

@@ -14,6 +14,7 @@ const (
 	tokenKindIdent
 	tokenKindReturn
 	tokenKindIf
+	tokenKindWhile
 )
 
 type token struct {
@@ -35,6 +36,8 @@ func identifierToken(val string) *token {
 		return &token{kind: tokenKindReturn, val: val}
 	} else if val == "if" {
 		return &token{kind: tokenKindIf, val: val}
+	} else if val == "while" {
+		return &token{kind: tokenKindWhile, val: val}
 	}
 	return &token{kind: tokenKindIdent, val: val}
 }
