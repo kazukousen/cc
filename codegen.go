@@ -7,6 +7,8 @@ import (
 
 var label = 0
 
+var argRegisters = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+
 func gen(n *node) {
 	switch n.kind {
 	case nodeKindReturn:
@@ -75,6 +77,15 @@ func gen(n *node) {
 		}
 		return
 	case nodeKindCall:
+
+		for _, arg := range n.args {
+			gen(arg)
+		}
+
+		for i := len(n.args) - 1; i >= 0; i-- {
+			fmt.Printf("	pop %s\n", argRegisters[i])
+		}
+
 		fmt.Printf("	call %s\n", n.name)
 		fmt.Printf("	push rax\n")
 		return

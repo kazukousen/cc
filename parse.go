@@ -72,6 +72,7 @@ type node struct {
 	code []*node
 
 	name string
+	args []*node
 }
 
 func newNode(kind nodeKind, left *node, right *node) *node {
@@ -315,9 +316,17 @@ func primary() *node {
 }
 
 func call(name string) *node {
-	for !consume(")") {
+	if consume(")") {
+		return &node{kind: nodeKindCall, name: name}
 	}
-	return &node{kind: nodeKindCall, name: name}
+
+	var args []*node
+	args = append(args, assign())
+	for consume(",") {
+		args = append(args, assign())
+	}
+	expect(")")
+	return &node{kind: nodeKindCall, name: name, args: args}
 }
 
 func num() *node {
