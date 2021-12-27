@@ -69,6 +69,81 @@ func advance() {
 	tokens = tokens[1:]
 }
 
+type nodeKind int
+
+const (
+	nodeKindAdd nodeKind = iota
+	nodeKindSub
+	nodeKindNum
+)
+
+type node struct {
+	kind nodeKind
+	lhs  *node
+	rhs  *node
+	num  int
+}
+
+func newNode(kind nodeKind, left *node, right *node) *node {
+	return &node{
+		kind: kind,
+		lhs:  left,
+		rhs:  right,
+	}
+}
+
+func newNodeNum(num int) *node {
+	return &node{
+		kind: nodeKindNum,
+		num:  num,
+	}
+}
+
+func expr() *node {
+	ret := num()
+	advance()
+	for ; len(tokens) > 0; advance() {
+		switch {
+		case consume("+"):
+			ret = newNode(nodeKindAdd, ret, num())
+		case consume("-"):
+			ret = newNode(nodeKindSub, ret, num())
+		}
+	}
+	return ret
+}
+
+func num() *node {
+	return newNodeNum(tokens[0].num)
+}
+
+func gen(n *node) {
+
+	if n.kind == nodeKindNum {
+		fmt.Printf("	push %d\n", n.num)
+		return
+	}
+
+	if n.lhs != nil {
+		gen(n.lhs)
+	}
+	if n.rhs != nil {
+		gen(n.rhs)
+	}
+
+	fmt.Printf("	pop rdi\n")
+	fmt.Printf("	pop rax\n")
+
+	switch n.kind {
+	case nodeKindAdd:
+		fmt.Printf("	add rax,rdi\n")
+	case nodeKindSub:
+		fmt.Printf("	sub rax,rdi\n")
+	}
+
+	fmt.Printf("	push rax\n")
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		_, _ = fmt.Fprintf(os.Stderr, "the number of arguments is insufficient\n")
@@ -83,25 +158,11 @@ func main() {
 	fmt.Printf(`.intel_syntax noprefix
 .globl main
 main:
-	mov rax, %d
-`, tokens[0].num)
-	tokens = tokens[1:]
+`)
 
-	for len(tokens) > 0 {
-		switch {
-		case consume("+"):
-			fmt.Printf("	add rax, %d\n", tokens[0].num)
-			advance()
-		case consume("-"):
-			fmt.Printf("	sub rax, %d\n", tokens[0].num)
-			advance()
-		default:
-			_, _ = fmt.Fprintln(os.Stderr, tokens)
-			_, _ = fmt.Fprintln(os.Stderr, "[Error] Unexpected token:", tokens[0])
-			os.Exit(1)
-		}
-	}
+	gen(expr())
 
+	fmt.Printf("	pop rax\n")
 	fmt.Printf("	ret\n")
 }
 
