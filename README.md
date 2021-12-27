@@ -3,7 +3,7 @@
 
 ```
 program    = stmt*
-stmt       = expr ";"
+stmt       = expr ";" | "return" expr ";"
 expr       = assign
 assign     = equality ("=" assign)?
 equality   = relational ("==" relational | "!=" relational)*

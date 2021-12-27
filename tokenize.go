@@ -12,6 +12,7 @@ const (
 	tokenKindReserved tokenKind = iota
 	tokenKindNumber
 	tokenKindIdent
+	tokenKindReturn
 )
 
 type token struct {
@@ -21,11 +22,18 @@ type token struct {
 }
 
 func isAlpha() bool {
-	return (in[0] >= 'a' && in[0] <= 'z') || (in[0] >= 'A' && in[0] <= 'Z')
+	return (in[0] >= 'a' && in[0] <= 'z') || (in[0] >= 'A' && in[0] <= 'Z') || in[0] == '_'
 }
 
 func isDigit() bool {
 	return in[0] >= '0' && in[0] <= '9'
+}
+
+func identifierToken(val string) *token {
+	if val == "return" {
+		return &token{kind: tokenKindReturn, val: val}
+	}
+	return &token{kind: tokenKindIdent, val: val}
 }
 
 func tokenize() {
@@ -43,7 +51,7 @@ func tokenize() {
 				name += in[0:1]
 				in = in[1:]
 			}
-			tokens = append(tokens, &token{kind: tokenKindIdent, val: name})
+			tokens = append(tokens, identifierToken(name))
 			continue
 		}
 

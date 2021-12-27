@@ -47,6 +47,7 @@ const (
 	nodeKindAssign // =
 	nodeKindLocal
 	nodeKindNum
+	nodeKindReturn
 )
 
 type node struct {
@@ -62,6 +63,13 @@ func newNode(kind nodeKind, left *node, right *node) *node {
 		kind: kind,
 		lhs:  left,
 		rhs:  right,
+	}
+}
+
+func newNodeNum(num int) *node {
+	return &node{
+		kind: nodeKindNum,
+		num:  num,
 	}
 }
 
@@ -101,13 +109,6 @@ func newNodeLocal(name string) *node {
 	}
 }
 
-func newNodeNum(num int) *node {
-	return &node{
-		kind: nodeKindNum,
-		num:  num,
-	}
-}
-
 func program() {
 	for len(tokens) > 0 {
 		code = append(code, stmt())
@@ -115,7 +116,12 @@ func program() {
 }
 
 func stmt() *node {
-	ret := expr()
+	var ret *node
+	if consume("return") {
+		ret = newNode(nodeKindReturn, expr(), nil)
+	} else {
+		ret = expr()
+	}
 	expect(";")
 	return ret
 }

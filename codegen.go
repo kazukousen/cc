@@ -7,6 +7,13 @@ import (
 
 func gen(n *node) {
 	switch n.kind {
+	case nodeKindReturn:
+		gen(n.lhs)
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	mov rsp, rbp\n")
+		fmt.Printf("	pop rbp\n")
+		fmt.Printf("	ret\n")
+		return
 	case nodeKindNum:
 		fmt.Printf("	push %d\n", n.num)
 		return
