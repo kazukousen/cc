@@ -58,7 +58,7 @@ func errorAt(msg string) {
 }
 
 func consume(c string) bool {
-	if tokens[0].val == c {
+	if len(tokens) > 0 && tokens[0].val == c {
 		tokens = tokens[1:]
 		return true
 	}
@@ -101,20 +101,22 @@ func newNodeNum(num int) *node {
 
 func expr() *node {
 	ret := num()
-	advance()
-	for ; len(tokens) > 0; advance() {
+	for {
 		switch {
 		case consume("+"):
 			ret = newNode(nodeKindAdd, ret, num())
 		case consume("-"):
 			ret = newNode(nodeKindSub, ret, num())
+		default:
+			return ret
 		}
 	}
-	return ret
 }
 
 func num() *node {
-	return newNodeNum(tokens[0].num)
+	ret := newNodeNum(tokens[0].num)
+	advance()
+	return ret
 }
 
 func gen(n *node) {
