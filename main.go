@@ -32,9 +32,14 @@ func tokenize() []*token {
 			continue
 		}
 
-		if in[0] == '+' || in[0] == '-' || in[0] == '*' || in[0] == '/' || in[0] == '(' || in[0] == ')' {
-			tokens = append(tokens, &token{kind: tokenKindReserved, val: string(in[0])})
-			in = in[1:]
+		if strings.Contains("+-*/()<>=!", string(in[0])) {
+			if len(in) > 1 && (in[0:2] == "<=" || in[0:2] == ">=" || in[0:2] == "==" || in[0:2] == "!=") {
+				tokens = append(tokens, &token{kind: tokenKindReserved, val: in[0:2]})
+				in = in[2:]
+			} else {
+				tokens = append(tokens, &token{kind: tokenKindReserved, val: string(in[0])})
+				in = in[1:]
+			}
 			continue
 		}
 
@@ -83,6 +88,10 @@ const (
 	nodeKindSub
 	nodeKindMul
 	nodeKindDiv
+	nodeKindEq // ==
+	nodeKindNe // !=
+	nodeKindLt // <
+	nodeKindLe // <=
 	nodeKindNum
 )
 
@@ -109,6 +118,42 @@ func newNodeNum(num int) *node {
 }
 
 func expr() *node {
+	return equality()
+}
+
+func equality() *node {
+	ret := relational()
+	for {
+		switch {
+		case consume("=="):
+			ret = newNode(nodeKindEq, ret, relational())
+		case consume("!="):
+			ret = newNode(nodeKindNe, ret, relational())
+		default:
+			return ret
+		}
+	}
+}
+
+func relational() *node {
+	ret := add()
+	for {
+		switch {
+		case consume("<"):
+			ret = newNode(nodeKindLt, ret, add())
+		case consume("<="):
+			ret = newNode(nodeKindLe, ret, add())
+		case consume(">"):
+			ret = newNode(nodeKindLt, add(), ret)
+		case consume(">="):
+			ret = newNode(nodeKindLe, add(), ret)
+		default:
+			return ret
+		}
+	}
+}
+
+func add() *node {
 	ret := mul()
 	for {
 		switch {
@@ -189,6 +234,22 @@ func gen(n *node) {
 	case nodeKindDiv:
 		fmt.Printf("	cqo\n")
 		fmt.Printf("	idiv rdi\n")
+	case nodeKindLt:
+		fmt.Printf("	cmp rax,rdi\n")
+		fmt.Printf("	setl al\n")
+		fmt.Printf("	movzb rax,al\n")
+	case nodeKindLe:
+		fmt.Printf("	cmp rax,rdi\n")
+		fmt.Printf("	setle al\n")
+		fmt.Printf("	movzb rax,al\n")
+	case nodeKindEq:
+		fmt.Printf("	cmp rax,rdi\n")
+		fmt.Printf("	sete al\n")
+		fmt.Printf("	movzb rax,al\n")
+	case nodeKindNe:
+		fmt.Printf("	cmp rax,rdi\n")
+		fmt.Printf("	setne al\n")
+		fmt.Printf("	movzb rax,al\n")
 	}
 
 	fmt.Printf("	push rax\n")
