@@ -173,10 +173,7 @@ func funcDecl() *function {
 	}
 
 	expect("{")
-	f.body = &node{kind: nodeKindBlock, code: []*node{}}
-	for !consume("}") {
-		f.body.code = append(f.body.code, stmt())
-	}
+	f.body = compoundStmt()
 	f.locals = locals
 
 	return f
@@ -190,7 +187,7 @@ func declarator() (*obj, []*obj) {
 
 	tok := consumeIdent()
 	if tok == nil {
-		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator", tokens[0].val)
+		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator:", tokens[0].val)
 		os.Exit(1)
 	}
 	val := newNodeLocal(tok.val).variable
@@ -229,11 +226,7 @@ func stmt() *node {
 		expect(";")
 		return ret
 	} else if consume("{") {
-		ret := &node{kind: nodeKindBlock, code: []*node{}}
-		for !consume("}") {
-			ret.code = append(ret.code, stmt())
-		}
-		return ret
+		return compoundStmt()
 	} else if consume("if") {
 		return ifStmt()
 	} else if consume("while") {
@@ -245,6 +238,19 @@ func stmt() *node {
 		expect(";")
 		return ret
 	}
+}
+
+func compoundStmt() *node {
+	ret := &node{kind: nodeKindBlock, code: []*node{}}
+	for !consume("}") {
+		if consume("int") {
+			_, _ = declarator()
+			expect(";")
+		} else {
+			ret.code = append(ret.code, stmt())
+		}
+	}
+	return ret
 }
 
 func ifStmt() *node {
