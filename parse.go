@@ -37,91 +37,77 @@ type function struct {
 	name   string
 	locals []*obj
 	args   []*obj
-	body   *node
+	body   statement
 }
 
-type nodeKind int
-
-const (
-	nodeKindAdd nodeKind = iota
-	nodeKindSub
-	nodeKindMul
-	nodeKindDiv
-	nodeKindEq     // ==
-	nodeKindNe     // !=
-	nodeKindLt     // <
-	nodeKindLe     // <=
-	nodeKindAssign // =
-	nodeKindVar
-	nodeKindNum
-	nodeKindBlock
-	nodeKindIf
-	nodeKindFor
-	nodeKindCall
-	nodeKindAddr
-	nodeKindDeref
-	nodeKindReturn
-)
-
-type node struct {
-	kind nodeKind
-
-	lhs *node
-	rhs *node
-
-	num      int
-	variable *obj
-
-	ini  *node
-	cond *node
-	step *node
-	then *node
-	els  *node
-
-	code []*node
-
-	name string
-	args []*node
+type expression interface {
+	isExpr()
 }
 
-func newNode(kind nodeKind, left *node, right *node) *node {
-	return &node{
-		kind: kind,
-		lhs:  left,
-		rhs:  right,
-	}
+type statement interface {
+	isStmt()
 }
 
-func newNodeNum(num int) *node {
-	return &node{
-		kind: nodeKindNum,
-		num:  num,
-	}
+type binaryNode struct {
+	op  string
+	lhs expression
+	rhs expression
 }
 
-func newNodeIf(cond *node, then *node, els *node) *node {
-	return &node{
-		kind: nodeKindIf,
-		cond: cond,
-		then: then,
-		els:  els,
-	}
+type assignNode binaryNode
+
+type unaryNode struct {
+	child expression
 }
 
-func newNodeFor(ini *node, cond *node, step *node, then *node) *node {
-	return &node{
-		kind: nodeKindFor,
-		ini:  ini,
-		cond: cond,
-		step: step,
-		then: then,
-	}
-}
+type exprStmtNode unaryNode
+type returnStmtNode unaryNode
+type addrNode unaryNode
+type derefNode unaryNode
+
+type intLit int
 
 type obj struct {
 	name   string
 	offset int
 }
+
+type funcCallNode struct {
+	name string
+	args []expression
+}
+
+func (binaryNode) isExpr()     {}
+func (assignNode) isExpr()     {}
+func (unaryNode) isExpr()      {}
+func (exprStmtNode) isStmt()   {}
+func (returnStmtNode) isStmt() {}
+func (addrNode) isExpr()       {}
+func (derefNode) isExpr()      {}
+func (intLit) isExpr()         {}
+func (obj) isExpr()            {}
+func (funcCallNode) isExpr()   {}
+
+type ifStmtNode struct {
+	cond expression
+	then statement
+	els  statement
+}
+
+type forStmtNode struct {
+	ini  expression
+	cond expression
+	step expression
+	then statement
+}
+
+type blockStmtNode struct {
+	code []statement
+}
+
+func (ifStmtNode) isStmt()    {}
+func (forStmtNode) isStmt()   {}
+func (blockStmtNode) isStmt() {}
 
 func findLocal(name string) *obj {
 	for i := range locals {
@@ -133,24 +119,18 @@ func findLocal(name string) *obj {
 	return nil
 }
 
-func newNodeLocal(name string) *node {
+func newNodeLocal(name string) *obj {
 
 	if lv := findLocal(name); lv != nil {
-		return &node{
-			kind:     nodeKindVar,
-			variable: lv,
-		}
+		return lv
 	}
 
-	variable := &obj{
+	lv := &obj{
 		name: name,
 	}
-	locals = append(locals, variable)
+	locals = append(locals, lv)
 
-	return &node{
-		kind:     nodeKindVar,
-		variable: variable,
-	}
+	return lv
 }
 
 func program() (funcs []*function) {
@@ -190,7 +170,7 @@ func declarator() (*obj, []*obj) {
 		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator:", tokens[0].val)
 		os.Exit(1)
 	}
-	val := newNodeLocal(tok.val).variable
+	val := newNodeLocal(tok.val)
 
 	var args []*obj
 	if consume("(") {
@@ -212,17 +192,9 @@ func declarator() (*obj, []*obj) {
 	return val, args
 }
 
-func funcArgs() (args []*obj) {
-	if !consume(")") {
-		return
-	}
-	expect(")")
-	return
-}
-
-func stmt() *node {
+func stmt() statement {
 	if consume("return") {
-		ret := newNode(nodeKindReturn, expr(), nil)
+		ret := returnStmtNode{child: expr()}
 		expect(";")
 		return ret
 	} else if consume("{") {
@@ -236,12 +208,12 @@ func stmt() *node {
 	} else {
 		ret := expr()
 		expect(";")
-		return ret
+		return exprStmtNode{child: ret}
 	}
 }
 
-func compoundStmt() *node {
-	ret := &node{kind: nodeKindBlock, code: []*node{}}
+func compoundStmt() statement {
+	ret := blockStmtNode{code: []statement{}}
 	for !consume("}") {
 		if consume("int") {
 			_, _ = declarator()
@@ -253,135 +225,133 @@ func compoundStmt() *node {
 	return ret
 }
 
-func ifStmt() *node {
+func ifStmt() statement {
 	expect("(")
 	cond := expr()
 	expect(")")
 	then := stmt()
 	if consume("else") {
 		els := stmt()
-		return newNodeIf(cond, then, els)
+		return ifStmtNode{cond: cond, then: then, els: els}
 	} else {
-		return newNodeIf(cond, then, nil)
+		return ifStmtNode{cond: cond, then: then, els: nil}
 	}
 }
 
-func whileStmt() *node {
+func whileStmt() statement {
 	expect("(")
 	cond := expr()
 	expect(")")
 	then := stmt()
-	return newNodeFor(nil, cond, nil, then)
+	return forStmtNode{ini: nil, cond: cond, step: nil, then: then}
 }
 
-func forStmt() *node {
+func forStmt() statement {
 	expect("(")
-	var ini *node
+	var ini expression
 	for !consume(";") {
 		ini = expr()
 	}
-	var cond *node
+	var cond expression
 	for !consume(";") {
 		cond = expr()
 	}
-	var step *node
+	var step expression
 	for !consume(")") {
 		step = expr()
 	}
 	then := stmt()
-	return newNodeFor(ini, cond, step, then)
+	return forStmtNode{ini: ini, cond: cond, step: step, then: then}
 }
 
-func expr() *node {
+func expr() expression {
 	return assign()
 }
 
-func assign() *node {
+func assign() expression {
 	ret := equality()
 	if consume("=") {
-		ret = newNode(nodeKindAssign, ret, assign())
+		ret = assignNode{op: "=", lhs: ret, rhs: assign()}
 	}
 	return ret
 }
 
-func equality() *node {
+func equality() expression {
 	ret := relational()
 	for {
 		switch {
 		case consume("=="):
-			ret = newNode(nodeKindEq, ret, relational())
+			ret = binaryNode{op: "==", lhs: ret, rhs: relational()}
 		case consume("!="):
-			ret = newNode(nodeKindNe, ret, relational())
+			ret = binaryNode{op: "!=", lhs: ret, rhs: relational()}
 		default:
 			return ret
 		}
 	}
 }
 
-func relational() *node {
+func relational() expression {
 	ret := add()
 	for {
 		switch {
 		case consume("<"):
-			ret = newNode(nodeKindLt, ret, add())
+			ret = binaryNode{op: "<", lhs: ret, rhs: add()}
 		case consume("<="):
-			ret = newNode(nodeKindLe, ret, add())
+			ret = binaryNode{op: "<=", lhs: ret, rhs: add()}
 		case consume(">"):
-			ret = newNode(nodeKindLt, add(), ret)
+			ret = binaryNode{op: "<", lhs: add(), rhs: ret}
 		case consume(">="):
-			ret = newNode(nodeKindLe, add(), ret)
+			ret = binaryNode{op: "<=", lhs: add(), rhs: ret}
 		default:
 			return ret
 		}
 	}
 }
 
-func add() *node {
+func add() expression {
 	ret := mul()
 	for {
 		switch {
 		case consume("+"):
-			ret = newNode(nodeKindAdd, ret, mul())
+			ret = binaryNode{op: "+", lhs: ret, rhs: mul()}
 		case consume("-"):
-			ret = newNode(nodeKindSub, ret, mul())
+			ret = binaryNode{op: "-", lhs: ret, rhs: mul()}
 		default:
 			return ret
 		}
 	}
 }
 
-func mul() *node {
+func mul() expression {
 	ret := unary()
 	for {
 		switch {
 		case consume("*"):
-			ret = newNode(nodeKindMul, ret, unary())
+			ret = binaryNode{op: "*", lhs: ret, rhs: unary()}
 		case consume("/"):
-			ret = newNode(nodeKindDiv, ret, unary())
+			ret = binaryNode{op: "/", lhs: ret, rhs: unary()}
 		default:
 			return ret
 		}
 	}
 }
 
-func unary() *node {
+func unary() expression {
 	switch {
 	case consume("-"):
-		return newNode(nodeKindSub, newNodeNum(0), unary())
+		return binaryNode{op: "-", lhs: intLit(0), rhs: unary()}
 	case consume("+"):
 		return unary()
 	case consume("&"):
-		ret := unary()
-		return newNode(nodeKindAddr, ret, nil)
+		return addrNode{child: unary()}
 	case consume("*"):
-		ret := unary()
-		return newNode(nodeKindDeref, ret, nil)
+		return derefNode{child: unary()}
 	default:
 		return primary()
 	}
 }
 
-func primary() *node {
+func primary() expression {
 	if consume("(") {
 		ret := expr()
 		expect(")")
@@ -390,7 +360,7 @@ func primary() *node {
 
 	if tok := consumeIdent(); tok != nil {
 		if consume("(") {
-			return &node{kind: nodeKindCall, name: tok.val, args: callArgs()}
+			return funcCallNode{name: tok.val, args: callArgs()}
 		} else {
 			return newNodeLocal(tok.val)
 		}
@@ -399,7 +369,7 @@ func primary() *node {
 	return num()
 }
 
-func callArgs() (args []*node) {
+func callArgs() (args []expression) {
 	if consume(")") {
 		return
 	}
@@ -411,8 +381,8 @@ func callArgs() (args []*node) {
 	return
 }
 
-func num() *node {
-	ret := newNodeNum(tokens[0].num)
+func num() expression {
+	ret := intLit(tokens[0].num)
 	advance()
 	return ret
 }

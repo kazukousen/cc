@@ -43,26 +43,26 @@ func codegen(funcs []*function) {
 	}
 }
 
-func gen(n *node) {
-	switch n.kind {
-	case nodeKindReturn:
-		gen(n.lhs)
+func gen(n interface{}) {
+	switch n := n.(type) {
+	case returnStmtNode:
+		gen(n.child)
 		fmt.Printf("	pop rax\n")
 		fmt.Printf("	jmp .Lreturn.%s\n", funcName)
 		return
-	case nodeKindNum:
-		fmt.Printf("	push %d\n", n.num)
+	case intLit:
+		fmt.Printf("	push %d\n", int(n))
 		return
-	case nodeKindVar:
+	case *obj:
 		genAddr(n)
 		load()
 		return
-	case nodeKindAssign:
+	case assignNode:
 		genAddr(n.lhs)
 		gen(n.rhs)
 		store()
 		return
-	case nodeKindIf:
+	case ifStmtNode:
 		gen(n.cond)
 		fmt.Printf("	pop rax\n")
 		fmt.Printf("	cmp rax, 0\n")
@@ -81,7 +81,7 @@ func gen(n *node) {
 		}
 		label++
 		return
-	case nodeKindFor:
+	case forStmtNode:
 		if n.ini != nil {
 			gen(n.ini)
 		}
@@ -98,12 +98,16 @@ func gen(n *node) {
 		}
 		fmt.Printf("	jmp .Lbegin%d\n", label)
 		fmt.Printf(".Lend%d:\n", label)
-	case nodeKindBlock:
+		return
+	case blockStmtNode:
 		for _, s := range n.code {
 			gen(s)
 		}
 		return
-	case nodeKindCall:
+	case exprStmtNode:
+		gen(n.child)
+		return
+	case funcCallNode:
 
 		for _, arg := range n.args {
 			gen(arg)
@@ -116,48 +120,50 @@ func gen(n *node) {
 		fmt.Printf("	call %s\n", n.name)
 		fmt.Printf("	push rax\n")
 		return
-	case nodeKindAddr:
-		genAddr(n.lhs)
+	case addrNode:
+		genAddr(n.child)
 		return
-	case nodeKindDeref:
-		gen(n.lhs)
+	case derefNode:
+		gen(n.child)
 		load()
 		return
 	}
 
-	if n.lhs != nil {
-		gen(n.lhs)
+	b := n.(binaryNode)
+
+	if b.lhs != nil {
+		gen(b.lhs)
 	}
-	if n.rhs != nil {
-		gen(n.rhs)
+	if b.rhs != nil {
+		gen(b.rhs)
 	}
 
 	fmt.Printf("	pop rdi\n")
 	fmt.Printf("	pop rax\n")
 
-	switch n.kind {
-	case nodeKindAdd:
+	switch b.op {
+	case "+":
 		fmt.Printf("	add rax, rdi\n")
-	case nodeKindSub:
+	case "-":
 		fmt.Printf("	sub rax, rdi\n")
-	case nodeKindMul:
+	case "*":
 		fmt.Printf("	imul rax, rdi\n")
-	case nodeKindDiv:
+	case "/":
 		fmt.Printf("	cqo\n")
 		fmt.Printf("	idiv rdi\n")
-	case nodeKindLt:
+	case "<":
 		fmt.Printf("	cmp rax, rdi\n")
 		fmt.Printf("	setl al\n")
 		fmt.Printf("	movzb rax, al\n")
-	case nodeKindLe:
+	case "<=":
 		fmt.Printf("	cmp rax, rdi\n")
 		fmt.Printf("	setle al\n")
 		fmt.Printf("	movzb rax, al\n")
-	case nodeKindEq:
+	case "==":
 		fmt.Printf("	cmp rax, rdi\n")
 		fmt.Printf("	sete al\n")
 		fmt.Printf("	movzb rax, al\n")
-	case nodeKindNe:
+	case "!=":
 		fmt.Printf("	cmp rax, rdi\n")
 		fmt.Printf("	setne al\n")
 		fmt.Printf("	movzb rax, al\n")
@@ -166,13 +172,13 @@ func gen(n *node) {
 	fmt.Printf("	push rax\n")
 }
 
-func genAddr(n *node) {
-	switch n.kind {
-	case nodeKindVar:
-		fmt.Printf("	lea rax, [rbp%d]\n", n.variable.offset)
+func genAddr(n expression) {
+	switch n := n.(type) {
+	case *obj:
+		fmt.Printf("	lea rax, [rbp%d]\n", n.offset)
 		fmt.Printf("	push rax\n")
-	case nodeKindDeref:
-		gen(n.lhs)
+	case derefNode:
+		gen(n.child)
 	default:
 		_, _ = fmt.Fprintln(os.Stderr, "Not a variable")
 		os.Exit(1)

@@ -8,7 +8,6 @@ import (
 var userIn string
 var in string
 var tokens []*token
-var code []*node
 var locals []*obj
 
 func main() {
