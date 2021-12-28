@@ -22,30 +22,7 @@ func main() {
 	in = os.Args[1]
 
 	tokenize()
-	program()
+	funcs := program()
 
-	offset := 0
-	for i := len(locals) - 1; i >= 0; i-- {
-		v := locals[i]
-		offset += 8
-		v.offset = -offset
-	}
-
-	fmt.Printf(`.intel_syntax noprefix
-.globl main
-main:
-	push rbp
-	mov rbp, rsp
-	sub rsp, %d
-`, len(locals)*8)
-
-	for _, c := range code {
-		gen(c)
-	}
-
-	fmt.Printf(`.Lreturn:
-	mov rsp, rbp
-	pop rbp
-	ret
-`)
+	codegen(funcs)
 }

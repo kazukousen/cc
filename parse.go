@@ -33,6 +33,12 @@ func advance() {
 	tokens = tokens[1:]
 }
 
+type function struct {
+	name   string
+	locals []*obj
+	body   *node
+}
+
 type nodeKind int
 
 const (
@@ -146,10 +152,51 @@ func newNodeLocal(name string) *node {
 	}
 }
 
-func program() {
+func program() (funcs []*function) {
 	for len(tokens) > 0 {
-		code = append(code, stmt())
+		funcs = append(funcs, funcDecl())
 	}
+	return
+}
+
+func funcDecl() *function {
+
+	declSpec()
+	name := declarator()
+
+	locals = []*obj{}
+
+	f := &function{
+		name: name,
+	}
+
+	expect("{")
+	f.body = &node{kind: nodeKindBlock, code: []*node{}}
+	for !consume("}") {
+		f.body.code = append(f.body.code, stmt())
+	}
+	f.locals = locals
+
+	return f
+}
+
+func declSpec() {
+	expect("int")
+}
+
+func declarator() string {
+
+	tok := consumeIdent()
+	if tok == nil {
+		_, _ = fmt.Fprintln(os.Stderr, "identifier expected", tokens[0].val)
+		os.Exit(1)
+	}
+
+	if consume("(") {
+		funcArgs()
+	}
+
+	return tok.val
 }
 
 func stmt() *node {
@@ -313,7 +360,7 @@ func primary() *node {
 
 	if tok := consumeIdent(); tok != nil {
 		if consume("(") {
-			return call(tok.val)
+			return &node{kind: nodeKindCall, name: tok.val, args: funcArgs()}
 		} else {
 			return newNodeLocal(tok.val)
 		}
@@ -322,18 +369,16 @@ func primary() *node {
 	return num()
 }
 
-func call(name string) *node {
+func funcArgs() (args []*node) {
 	if consume(")") {
-		return &node{kind: nodeKindCall, name: name}
+		return
 	}
-
-	var args []*node
 	args = append(args, assign())
 	for consume(",") {
 		args = append(args, assign())
 	}
 	expect(")")
-	return &node{kind: nodeKindCall, name: name, args: args}
+	return
 }
 
 func num() *node {

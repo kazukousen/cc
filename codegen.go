@@ -6,15 +6,45 @@ import (
 )
 
 var label = 0
+var funcName string
 
 var argRegisters = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+
+func codegen(funcs []*function) {
+	fmt.Printf(".intel_syntax noprefix\n")
+	for _, f := range funcs {
+		offset := 0
+		for i := len(f.locals) - 1; i >= 0; i-- {
+			v := f.locals[i]
+			offset += 8
+			v.offset = -offset
+		}
+
+		funcName = f.name
+
+		fmt.Printf(`.globl %[1]s
+%[1]s:
+	push rbp
+	mov rbp, rsp
+	sub rsp, %[2]d
+`, funcName, len(f.locals)*8)
+
+		gen(f.body)
+
+		fmt.Printf(`.Lreturn.%s:
+	mov rsp, rbp
+	pop rbp
+	ret
+`, funcName)
+	}
+}
 
 func gen(n *node) {
 	switch n.kind {
 	case nodeKindReturn:
 		gen(n.lhs)
 		fmt.Printf("	pop rax\n")
-		fmt.Printf("	jmp .Lreturn\n")
+		fmt.Printf("	jmp .Lreturn.%s\n", funcName)
 		return
 	case nodeKindNum:
 		fmt.Printf("	push %d\n", n.num)
