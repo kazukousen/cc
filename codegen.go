@@ -29,6 +29,10 @@ func codegen(funcs []*function) {
 	sub rsp, %[2]d
 `, funcName, len(f.locals)*8)
 
+		for i, arg := range f.args {
+			fmt.Printf("	mov [rbp%d], %s\n", arg.offset, argRegisters[i])
+		}
+
 		gen(f.body)
 
 		fmt.Printf(`.Lreturn.%s:

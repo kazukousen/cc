@@ -36,6 +36,7 @@ func advance() {
 type function struct {
 	name   string
 	locals []*obj
+	args   []*obj
 	body   *node
 }
 
@@ -161,13 +162,14 @@ func program() (funcs []*function) {
 
 func funcDecl() *function {
 
-	declSpec()
-	name := declarator()
-
 	locals = []*obj{}
 
+	declSpec()
+	v, args := declarator()
+
 	f := &function{
-		name: name,
+		name: v.name,
+		args: args,
 	}
 
 	expect("{")
@@ -184,19 +186,41 @@ func declSpec() {
 	expect("int")
 }
 
-func declarator() string {
+func declarator() (*obj, []*obj) {
 
 	tok := consumeIdent()
 	if tok == nil {
-		_, _ = fmt.Fprintln(os.Stderr, "identifier expected", tokens[0].val)
+		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator", tokens[0].val)
 		os.Exit(1)
 	}
+	val := newNodeLocal(tok.val).variable
 
+	var args []*obj
 	if consume("(") {
-		funcArgs()
+		if consume(")") {
+			return val, args
+		}
+
+		for {
+			declSpec()
+			v, _ := declarator()
+			args = append(args, v)
+			if !consume(",") {
+				break
+			}
+		}
+		expect(")")
 	}
 
-	return tok.val
+	return val, args
+}
+
+func funcArgs() (args []*obj) {
+	if !consume(")") {
+		return
+	}
+	expect(")")
+	return
 }
 
 func stmt() *node {
@@ -360,7 +384,7 @@ func primary() *node {
 
 	if tok := consumeIdent(); tok != nil {
 		if consume("(") {
-			return &node{kind: nodeKindCall, name: tok.val, args: funcArgs()}
+			return &node{kind: nodeKindCall, name: tok.val, args: callArgs()}
 		} else {
 			return newNodeLocal(tok.val)
 		}
@@ -369,7 +393,7 @@ func primary() *node {
 	return num()
 }
 
-func funcArgs() (args []*node) {
+func callArgs() (args []*node) {
 	if consume(")") {
 		return
 	}

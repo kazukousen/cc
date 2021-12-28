@@ -5,7 +5,7 @@
 program    = funcDecl*
 funcDecl   = declspec declarator stmt
 declspec   = "int"
-declarator = "*"* ident ("(" funcParams? ")")?
+declarator = "*"* ident ("(" (declspec declarator ("," declspec declarator)*)? ")")?
 stmt       = expr ";" | "{ stmt* "}" | returnStmt | ifStmt | whileStmt | forStmt
 returnStmt = "return" expr ";"
 ifStmt     = "if" "(" expr ")" stmt ("else" stmt)?
@@ -18,6 +18,5 @@ relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 add        = mul ("+" mul | "-" mul)*
 mul        = unary ("*" unary | "/" unary)*
 unary      = ("+" | "-" | "*" | "&") unary | primary
-primary    = num | ident ("(" funcParams? ")")? | "(" expr ")"
-funcParams = assign ("," assign)*
+primary    = num | ident ("(" (assign ("," assign)*)? ")")? | "(" expr ")"
 ```
