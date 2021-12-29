@@ -95,6 +95,8 @@ assert 3 'int main() { x=3; return *&x; }'
 assert 3 'int main() { x=3; y=&x; z=&y; return **z; }'
 assert 5 'int main() { x=3; y=5; return *(&x+8); }'
 assert 3 'int main() { x=3; y=5; return *(&y-8); }'
+assert 8 'int main() { int x, y; x=3; y=5; return x+y; }'
+assert 8 'int main() { int x=3, y=5; return x+y; }'
 
 assert 32 'int main() { return ret32(); } int ret32() { return 32; }'
 assert 7 'int main() { return add2(3,4); } int add2(int x, int y) { return x+y; }'
@@ -102,5 +104,6 @@ assert 1 'int main() { return sub2(4,3); } int sub2(int x, int y) { return x-y; 
 assert 55 'int main() { return fib(9); } int fib(int x) { if (x<=1) return 1; return fib(x-1) + fib(x-2); }'
 
 assert 3 'int main() { int x; x = 3; return x; }'
+
 
 echo OK

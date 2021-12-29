@@ -51,7 +51,7 @@ func gen(n interface{}) {
 		fmt.Printf("	jmp .Lreturn.%s\n", funcName)
 		return
 	case intLit:
-		fmt.Printf("	push %d\n", int(n))
+		fmt.Printf("	push %d\n", n.val)
 		return
 	case *obj:
 		genAddr(n)
@@ -180,7 +180,7 @@ func genAddr(n expression) {
 	case derefNode:
 		gen(n.child)
 	default:
-		_, _ = fmt.Fprintln(os.Stderr, "Not a variable")
+		_, _ = fmt.Fprintln(os.Stderr, "Not an identifier")
 		os.Exit(1)
 	}
 }
@@ -195,5 +195,5 @@ func store() {
 	fmt.Printf("	pop rdi\n")
 	fmt.Printf("	pop rax\n")
 	fmt.Printf("	mov [rax], rdi\n")
-	fmt.Printf("	push rdi\n")
+	fmt.Printf("	push rdi\n") // e.g. a=b=3
 }

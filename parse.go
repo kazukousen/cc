@@ -13,8 +13,12 @@ func consume(c string) bool {
 	return false
 }
 
-func consumeIdent() *token {
-	if len(tokens) > 0 && tokens[0].kind == tokenKindIdent {
+func equalToken(kind tokenKind) bool {
+	return len(tokens) > 0 && tokens[0].kind == kind
+}
+
+func consumeToken(kind tokenKind) *token {
+	if equalToken(kind) {
 		tok := tokens[0]
 		tokens = tokens[1:]
 		return tok
@@ -65,9 +69,13 @@ type returnStmtNode unaryNode
 type addrNode unaryNode
 type derefNode unaryNode
 
-type intLit int
+type intLit struct {
+	ty  *typ
+	val int
+}
 
 type obj struct {
+	ty     *typ
 	name   string
 	offset int
 }
@@ -144,8 +152,8 @@ func funcDecl() *function {
 
 	locals = []*obj{}
 
-	declSpec()
-	v, args := declarator()
+	ty := declSpec()
+	v, args := declarator(ty)
 
 	f := &function{
 		name: v.name,
@@ -159,34 +167,41 @@ func funcDecl() *function {
 	return f
 }
 
-func declSpec() {
-	expect("int")
+func declSpec() *typ {
+	tok := consumeToken(tokenKindType)
+	if tok == nil {
+		_, _ = fmt.Fprintln(os.Stderr, "Expect an type:", tokens[0].val)
+		os.Exit(1)
+	}
+
+	return newLiteralType(tok.val)
 }
 
-func declarator() (*obj, []*obj) {
+func declarator(ty *typ) (*obj, []*obj) {
 
-	tok := consumeIdent()
+	for consume("*") {
+		ty = pointerTo(ty)
+	}
+
+	tok := consumeToken(tokenKindIdent)
 	if tok == nil {
 		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator:", tokens[0].val)
 		os.Exit(1)
 	}
 	val := newNodeLocal(tok.val)
+	val.ty = ty
 
 	var args []*obj
 	if consume("(") {
-		if consume(")") {
-			return val, args
-		}
-
-		for {
-			declSpec()
-			v, _ := declarator()
-			args = append(args, v)
-			if !consume(",") {
-				break
+		for i := 0; !consume(")"); i++ {
+			if i > 0 {
+				expect(",")
 			}
+			ty := declSpec()
+			v, ps := declarator(ty)
+			args = append(args, v)
+			args = append(args, ps...)
 		}
-		expect(")")
 	}
 
 	return val, args
@@ -215,9 +230,18 @@ func stmt() statement {
 func compoundStmt() statement {
 	ret := blockStmtNode{code: []statement{}}
 	for !consume("}") {
-		if consume("int") {
-			_, _ = declarator()
-			expect(";")
+		if equalToken(tokenKindType) {
+			ty := declSpec()
+			for i := 0; !consume(";"); i++ {
+				if i > 0 {
+					expect(",")
+				}
+				v, _ := declarator(ty)
+				if consume("=") {
+					n := assignNode{op: "=", lhs: v, rhs: assign()}
+					ret.code = append(ret.code, exprStmtNode{child: n})
+				}
+			}
 		} else {
 			ret.code = append(ret.code, stmt())
 		}
@@ -339,7 +363,7 @@ func mul() expression {
 func unary() expression {
 	switch {
 	case consume("-"):
-		return binaryNode{op: "-", lhs: intLit(0), rhs: unary()}
+		return binaryNode{op: "-", lhs: intLit{val: 0}, rhs: unary()}
 	case consume("+"):
 		return unary()
 	case consume("&"):
@@ -358,7 +382,7 @@ func primary() expression {
 		return ret
 	}
 
-	if tok := consumeIdent(); tok != nil {
+	if tok := consumeToken(tokenKindIdent); tok != nil {
 		if consume("(") {
 			return funcCallNode{name: tok.val, args: callArgs()}
 		} else {
@@ -382,7 +406,7 @@ func callArgs() (args []expression) {
 }
 
 func num() expression {
-	ret := intLit(tokens[0].num)
+	ret := intLit{val: tokens[0].num}
 	advance()
 	return ret
 }

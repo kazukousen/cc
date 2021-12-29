@@ -12,9 +12,7 @@ const (
 	tokenKindReserved tokenKind = iota
 	tokenKindNumber
 	tokenKindIdent
-	tokenKindReturn
-	tokenKindIf
-	tokenKindFor
+	tokenKindType
 )
 
 type token struct {
@@ -32,12 +30,15 @@ func isDigit() bool {
 }
 
 func identifierToken(val string) *token {
-	if val == "return" {
-		return &token{kind: tokenKindReturn, val: val}
-	} else if val == "if" {
-		return &token{kind: tokenKindIf, val: val}
-	} else if val == "while" || val == "for" {
-		return &token{kind: tokenKindFor, val: val}
+	for _, w := range []string{"return", "if", "else", "while", "for"} {
+		if val == w {
+			return &token{kind: tokenKindReserved, val: val}
+		}
+	}
+	for _, w := range []string{"int"} {
+		if val == w {
+			return &token{kind: tokenKindType, val: val}
+		}
 	}
 	return &token{kind: tokenKindIdent, val: val}
 }

@@ -4,7 +4,7 @@
 ```
 program      = funcDecl*
 funcDecl     = declspec declarator "{" compoundStmt
-declaration  = declspec (declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+declaration  = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 declspec     = "int"
 declarator   = "*"* ident ("(" (declspec declarator ("," declspec declarator)*)? ")")?
 stmt         = expr ";" | "{ compoundStmt | returnStmt | ifStmt | whileStmt | forStmt
