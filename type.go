@@ -10,7 +10,6 @@ const (
 type typ struct {
 	kind typeKind
 	base *typ
-	name string
 }
 
 func newLiteralType(s string) *typ {

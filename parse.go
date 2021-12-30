@@ -148,6 +148,7 @@ func program() (funcs []*function) {
 	return
 }
 
+// funcDecl = declspec declarator "{" compoundStmt
 func funcDecl() *function {
 
 	locals = []*obj{}
@@ -207,6 +208,39 @@ func declarator(ty *typ) (*obj, []*obj) {
 	return val, args
 }
 
+// compoundStmt = (declaration | stmt)* "}"
+func compoundStmt() statement {
+	ret := blockStmtNode{code: []statement{}}
+	for !consume("}") {
+		if equalToken(tokenKindType) {
+			ret.code = append(ret.code, declaration()...)
+		} else {
+			ret.code = append(ret.code, stmt())
+		}
+	}
+	return ret
+}
+
+// declaration = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
+func declaration() []statement {
+	var ret []statement
+	ty := declSpec()
+	for i := 0; ; i++ {
+		if i > 0 {
+			expect(",")
+		}
+		v, _ := declarator(ty)
+		if consume("=") {
+			n := assignNode{op: "=", lhs: v, rhs: expr()}
+			ret = append(ret, exprStmtNode{child: n})
+		}
+		if consume(";") {
+			break
+		}
+	}
+	return ret
+}
+
 func stmt() statement {
 	if consume("return") {
 		ret := returnStmtNode{child: expr()}
@@ -225,28 +259,6 @@ func stmt() statement {
 		expect(";")
 		return exprStmtNode{child: ret}
 	}
-}
-
-func compoundStmt() statement {
-	ret := blockStmtNode{code: []statement{}}
-	for !consume("}") {
-		if equalToken(tokenKindType) {
-			ty := declSpec()
-			for i := 0; !consume(";"); i++ {
-				if i > 0 {
-					expect(",")
-				}
-				v, _ := declarator(ty)
-				if consume("=") {
-					n := assignNode{op: "=", lhs: v, rhs: assign()}
-					ret.code = append(ret.code, exprStmtNode{child: n})
-				}
-			}
-		} else {
-			ret.code = append(ret.code, stmt())
-		}
-	}
-	return ret
 }
 
 func ifStmt() statement {
@@ -288,10 +300,12 @@ func forStmt() statement {
 	return forStmtNode{ini: ini, cond: cond, step: step, then: then}
 }
 
+// expr = assign
 func expr() expression {
 	return assign()
 }
 
+// assign = equality ("=" assign)?
 func assign() expression {
 	ret := equality()
 	if consume("=") {
@@ -300,6 +314,7 @@ func assign() expression {
 	return ret
 }
 
+// equality = relational ("==" relational | "!=" relational)*
 func equality() expression {
 	ret := relational()
 	for {
@@ -314,6 +329,7 @@ func equality() expression {
 	}
 }
 
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 func relational() expression {
 	ret := add()
 	for {
@@ -332,6 +348,7 @@ func relational() expression {
 	}
 }
 
+// add = mul ("+" mul | "-" mul)*
 func add() expression {
 	ret := mul()
 	for {
@@ -346,6 +363,7 @@ func add() expression {
 	}
 }
 
+// mul = unary ("*" unary | "/" unary)*
 func mul() expression {
 	ret := unary()
 	for {
@@ -360,6 +378,7 @@ func mul() expression {
 	}
 }
 
+// unary = ("-" | "+" | "&" | "*") unary | primary
 func unary() expression {
 	switch {
 	case consume("-"):
@@ -375,6 +394,7 @@ func unary() expression {
 	}
 }
 
+// primary = "(" expr ")" | ident ("(" callArgs)? | num
 func primary() expression {
 	if consume("(") {
 		ret := expr()
@@ -393,6 +413,7 @@ func primary() expression {
 	return num()
 }
 
+// callArgs = (assign ("," assign)*)? ")"
 func callArgs() (args []expression) {
 	if consume(")") {
 		return
