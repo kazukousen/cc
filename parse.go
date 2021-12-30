@@ -7,7 +7,7 @@ import (
 
 func consume(c string) bool {
 	if len(tokens) > 0 && tokens[0].val == c {
-		tokens = tokens[1:]
+		advance()
 		return true
 	}
 	return false
@@ -20,7 +20,7 @@ func equalToken(kind tokenKind) bool {
 func consumeToken(kind tokenKind) *token {
 	if equalToken(kind) {
 		tok := tokens[0]
-		tokens = tokens[1:]
+		advance()
 		return tok
 	}
 	return nil
