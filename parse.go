@@ -38,10 +38,11 @@ func advance() {
 }
 
 type function struct {
-	name   string
-	locals []*obj
-	args   []*obj
-	body   statement
+	name      string
+	locals    []*obj
+	args      []*obj
+	body      statement
+	stackSize int
 }
 
 type expression interface {
@@ -129,10 +130,6 @@ func findLocal(name string) *obj {
 
 func newNodeLocal(name string) *obj {
 
-	if lv := findLocal(name); lv != nil {
-		return lv
-	}
-
 	lv := &obj{
 		name: name,
 	}
@@ -164,6 +161,7 @@ func funcDecl() *function {
 	expect("{")
 	f.body = compoundStmt()
 	f.locals = locals
+	f.stackSize = calcStackSize(f.locals)
 
 	return f
 }
@@ -406,7 +404,12 @@ func primary() expression {
 		if consume("(") {
 			return funcCallNode{name: tok.val, args: callArgs()}
 		} else {
-			return newNodeLocal(tok.val)
+			lv := findLocal(tok.val)
+			if lv == nil {
+				_, _ = fmt.Fprintln(os.Stderr, "Undefined variable", tok.val)
+				os.Exit(1)
+			}
+			return lv
 		}
 	}
 

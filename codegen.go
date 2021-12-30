@@ -16,7 +16,7 @@ func codegen(funcs []*function) {
 		offset := 0
 		for i := len(f.locals) - 1; i >= 0; i-- {
 			v := f.locals[i]
-			offset += 8
+			offset += v.ty.size
 			v.offset = -offset
 		}
 
@@ -27,7 +27,7 @@ func codegen(funcs []*function) {
 	push rbp
 	mov rbp, rsp
 	sub rsp, %[2]d
-`, funcName, len(f.locals)*8)
+`, funcName, f.stackSize)
 
 		for i, arg := range f.args {
 			fmt.Printf("	mov [rbp%d], %s\n", arg.offset, argRegisters[i])
