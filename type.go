@@ -5,21 +5,23 @@ type typeKind int
 const (
 	typeKindInt typeKind = iota
 	typeKindBool
+	typeKindArray
 	typeKindPtr
 )
 
 type typ struct {
-	kind typeKind
-	base *typ
-	size int
+	kind   typeKind
+	base   *typ
+	size   int
+	length int
 }
 
 func (ty *typ) isInteger() bool {
 	return ty.kind == typeKindInt
 }
 
-func (ty *typ) isPointer() bool {
-	return ty.kind == typeKindPtr
+func (ty *typ) hasBase() bool {
+	return ty.base != nil
 }
 
 func newLiteralType(s string) *typ {
@@ -37,11 +39,20 @@ func newLiteralType(s string) *typ {
 	}
 }
 
-func pointerTo(ty *typ) *typ {
+func pointerTo(base *typ) *typ {
 	return &typ{
 		kind: typeKindPtr,
-		base: ty,
+		base: base,
 		size: 8,
+	}
+}
+
+func arrayOf(base *typ, length int) *typ {
+	return &typ{
+		kind:   typeKindArray,
+		base:   base,
+		size:   base.size * length,
+		length: length,
 	}
 }
 
@@ -67,17 +78,20 @@ func addType(n interface{}) {
 		return
 	case *addrNode:
 		addType(n.child)
-		ty := pointerTo(n.child.getType())
+		ct := n.child.getType()
+		if ct.kind == typeKindArray {
+			ct = n.child.getType().base
+		}
+		ty := pointerTo(ct)
 		n.setType(ty)
 		return
 	case *derefNode:
 		addType(n.child)
 		ty := n.child.getType()
-		if ty.kind == typeKindPtr {
-			n.setType(ty.base)
-			return
+		if !ty.hasBase() {
+			panic("invalid pointer dereference")
 		}
-		n.setType(ty)
+		n.setType(ty.base)
 		return
 	case *binaryNode:
 		addType(n.lhs)
@@ -121,6 +135,7 @@ func addType(n interface{}) {
 	case *assignNode:
 		addType(n.lhs)
 		addType(n.rhs)
+		n.setType(n.lhs.getType())
 		return
 	}
 }

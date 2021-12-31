@@ -55,7 +55,7 @@ func gen(n interface{}) {
 		return
 	case *obj:
 		genAddr(n)
-		load()
+		load(n.getType())
 		return
 	case *assignNode:
 		genAddr(n.lhs)
@@ -125,7 +125,7 @@ func gen(n interface{}) {
 		return
 	case *derefNode:
 		gen(n.child)
-		load()
+		load(n.getType())
 		return
 	}
 
@@ -185,7 +185,10 @@ func genAddr(n expression) {
 	}
 }
 
-func load() {
+func load(ty *typ) {
+	if ty.kind == typeKindArray {
+		return
+	}
 	fmt.Printf("	pop rax\n")
 	fmt.Printf("	mov rax, [rax]\n")
 	fmt.Printf("	push rax\n")

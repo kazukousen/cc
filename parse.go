@@ -215,8 +215,8 @@ func declarator(ty *typ) (*obj, []*obj) {
 		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator:", tokens[0].val)
 		os.Exit(1)
 	}
-	val := newNodeLocal(tok.val)
-	val.setType(ty)
+	lv := newNodeLocal(tok.val)
+	lv.setType(ty)
 
 	var args []*obj
 	if consume("(") {
@@ -231,7 +231,13 @@ func declarator(ty *typ) (*obj, []*obj) {
 		}
 	}
 
-	return val, args
+	if consume("[") {
+		length := num().val
+		expect("]")
+		lv.setType(arrayOf(ty, length))
+	}
+
+	return lv, args
 }
 
 // compoundStmt = (declaration | stmt)* "}"
@@ -457,7 +463,7 @@ func callArgs() (args []expression) {
 	return
 }
 
-func num() expression {
+func num() *intLit {
 	ret := &intLit{val: tokens[0].num}
 	advance()
 	return ret
@@ -472,14 +478,14 @@ func newAddBinary(lhs, rhs expression) expression {
 	}
 
 	// canonicalize num + ptr to ptr + num
-	if lhs.getType().isInteger() && rhs.getType().isPointer() {
+	if lhs.getType().isInteger() && rhs.getType().hasBase() {
 		tmp := lhs
 		lhs = rhs
 		rhs = tmp
 	}
 
 	// ptr + num
-	if lhs.getType().isPointer() && rhs.getType().isInteger() {
+	if lhs.getType().hasBase() && rhs.getType().isInteger() {
 		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
 		return &binaryNode{op: "+", lhs: lhs, rhs: rhs}
 	}
@@ -496,13 +502,13 @@ func newSubBinary(lhs, rhs expression) expression {
 	}
 
 	// ptr - num
-	if lhs.getType().isPointer() && rhs.getType().isInteger() {
+	if lhs.getType().hasBase() && rhs.getType().isInteger() {
 		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
 		return &binaryNode{op: "-", lhs: lhs, rhs: rhs}
 	}
 
 	// ptr - ptr, which returns how many elements are between the two.
-	if lhs.getType().isPointer() && rhs.getType().isPointer() {
+	if lhs.getType().hasBase() && rhs.getType().hasBase() {
 		lhs = &binaryNode{op: "-", lhs: lhs, rhs: rhs, ty: newLiteralType("int")}
 		return &binaryNode{op: "/", lhs: lhs, rhs: &intLit{val: 8}}
 	}
