@@ -455,7 +455,22 @@ func primary() expression {
 		}
 	}
 
-	return num()
+	n := num()
+	if !consume("[") {
+		return n
+	}
+
+	var lv *obj
+	if tok := consumeToken(tokenKindIdent); tok != nil {
+		lv = findLocal(tok.val)
+	}
+	if lv == nil {
+		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier:", tokens[0].val)
+		os.Exit(1)
+	}
+
+	expect("]")
+	return &derefNode{child: newAddBinary(lv, n)}
 }
 
 // callArgs = (assign ("," assign)*)? ")"
