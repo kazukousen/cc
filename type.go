@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type typeKind int
 
 const (
@@ -89,7 +91,7 @@ func addType(n interface{}) {
 		addType(n.child)
 		ty := n.child.getType()
 		if !ty.hasBase() {
-			panic("invalid pointer dereference")
+			panic(fmt.Sprintf("invalid pointer dereference: %v", ty))
 		}
 		n.setType(ty.base)
 		return
@@ -135,6 +137,7 @@ func addType(n interface{}) {
 	case *assignNode:
 		addType(n.lhs)
 		addType(n.rhs)
+		n.lhs.setType(n.rhs.getType())
 		n.setType(n.lhs.getType())
 		return
 	}
