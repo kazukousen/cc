@@ -45,24 +45,24 @@ func codegen(funcs []*function) {
 
 func gen(n interface{}) {
 	switch n := n.(type) {
-	case returnStmtNode:
+	case *returnStmtNode:
 		gen(n.child)
 		fmt.Printf("	pop rax\n")
 		fmt.Printf("	jmp .Lreturn.%s\n", funcName)
 		return
-	case intLit:
+	case *intLit:
 		fmt.Printf("	push %d\n", n.val)
 		return
 	case *obj:
 		genAddr(n)
 		load()
 		return
-	case assignNode:
+	case *assignNode:
 		genAddr(n.lhs)
 		gen(n.rhs)
 		store()
 		return
-	case ifStmtNode:
+	case *ifStmtNode:
 		gen(n.cond)
 		fmt.Printf("	pop rax\n")
 		fmt.Printf("	cmp rax, 0\n")
@@ -81,7 +81,7 @@ func gen(n interface{}) {
 		}
 		label++
 		return
-	case forStmtNode:
+	case *forStmtNode:
 		if n.ini != nil {
 			gen(n.ini)
 		}
@@ -99,15 +99,15 @@ func gen(n interface{}) {
 		fmt.Printf("	jmp .Lbegin%d\n", label)
 		fmt.Printf(".Lend%d:\n", label)
 		return
-	case blockStmtNode:
+	case *blockStmtNode:
 		for _, s := range n.code {
 			gen(s)
 		}
 		return
-	case exprStmtNode:
+	case *exprStmtNode:
 		gen(n.child)
 		return
-	case funcCallNode:
+	case *funcCallNode:
 
 		for _, arg := range n.args {
 			gen(arg)
@@ -120,16 +120,16 @@ func gen(n interface{}) {
 		fmt.Printf("	call %s\n", n.name)
 		fmt.Printf("	push rax\n")
 		return
-	case addrNode:
+	case *addrNode:
 		genAddr(n.child)
 		return
-	case derefNode:
+	case *derefNode:
 		gen(n.child)
 		load()
 		return
 	}
 
-	b := n.(binaryNode)
+	b := n.(*binaryNode)
 
 	if b.lhs != nil {
 		gen(b.lhs)
@@ -177,7 +177,7 @@ func genAddr(n expression) {
 	case *obj:
 		fmt.Printf("	lea rax, [rbp%d]\n", n.offset)
 		fmt.Printf("	push rax\n")
-	case derefNode:
+	case *derefNode:
 		gen(n.child)
 	default:
 		_, _ = fmt.Fprintln(os.Stderr, "Not an identifier")

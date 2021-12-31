@@ -47,6 +47,8 @@ type function struct {
 
 type expression interface {
 	isExpr()
+	getType() *typ
+	setType(ty *typ)
 }
 
 type statement interface {
@@ -54,6 +56,7 @@ type statement interface {
 }
 
 type binaryNode struct {
+	ty  *typ
 	op  string
 	lhs expression
 	rhs expression
@@ -62,6 +65,7 @@ type binaryNode struct {
 type assignNode binaryNode
 
 type unaryNode struct {
+	ty    *typ
 	child expression
 }
 
@@ -82,20 +86,43 @@ type obj struct {
 }
 
 type funcCallNode struct {
+	ty   *typ
 	name string
 	args []expression
 }
 
-func (binaryNode) isExpr()     {}
-func (assignNode) isExpr()     {}
-func (unaryNode) isExpr()      {}
-func (exprStmtNode) isStmt()   {}
-func (returnStmtNode) isStmt() {}
-func (addrNode) isExpr()       {}
-func (derefNode) isExpr()      {}
-func (intLit) isExpr()         {}
-func (obj) isExpr()            {}
-func (funcCallNode) isExpr()   {}
+func (*binaryNode) isExpr()     {}
+func (*assignNode) isExpr()     {}
+func (*unaryNode) isExpr()      {}
+func (*exprStmtNode) isStmt()   {}
+func (*returnStmtNode) isStmt() {}
+func (*addrNode) isExpr()       {}
+func (*derefNode) isExpr()      {}
+func (*intLit) isExpr()         {}
+func (*obj) isExpr()            {}
+func (*funcCallNode) isExpr()   {}
+
+func (n *binaryNode) getType() *typ     { return n.ty }
+func (n *assignNode) getType() *typ     { return n.ty }
+func (n *unaryNode) getType() *typ      { return n.ty }
+func (n *exprStmtNode) getType() *typ   { return n.ty }
+func (n *returnStmtNode) getType() *typ { return n.ty }
+func (n *addrNode) getType() *typ       { return n.ty }
+func (n *derefNode) getType() *typ      { return n.ty }
+func (n *intLit) getType() *typ         { return n.ty }
+func (n *obj) getType() *typ            { return n.ty }
+func (n *funcCallNode) getType() *typ   { return n.ty }
+
+func (n *binaryNode) setType(ty *typ)     { n.ty = ty }
+func (n *assignNode) setType(ty *typ)     { n.ty = ty }
+func (n *unaryNode) setType(ty *typ)      { n.ty = ty }
+func (n *exprStmtNode) setType(ty *typ)   { n.ty = ty }
+func (n *returnStmtNode) setType(ty *typ) { n.ty = ty }
+func (n *addrNode) setType(ty *typ)       { n.ty = ty }
+func (n *derefNode) setType(ty *typ)      { n.ty = ty }
+func (n *intLit) setType(ty *typ)         { n.ty = ty }
+func (n *obj) setType(ty *typ)            { n.ty = ty }
+func (n *funcCallNode) setType(ty *typ)   { n.ty = ty }
 
 type ifStmtNode struct {
 	cond expression
@@ -114,9 +141,9 @@ type blockStmtNode struct {
 	code []statement
 }
 
-func (ifStmtNode) isStmt()    {}
-func (forStmtNode) isStmt()   {}
-func (blockStmtNode) isStmt() {}
+func (*ifStmtNode) isStmt()    {}
+func (*forStmtNode) isStmt()   {}
+func (*blockStmtNode) isStmt() {}
 
 func findLocal(name string) *obj {
 	for i := range locals {
@@ -161,6 +188,7 @@ func funcDecl() *function {
 	expect("{")
 	f.body = compoundStmt()
 	f.locals = locals
+	addType(f.body)
 	f.stackSize = calcStackSize(f.locals)
 
 	return f
@@ -188,7 +216,7 @@ func declarator(ty *typ) (*obj, []*obj) {
 		os.Exit(1)
 	}
 	val := newNodeLocal(tok.val)
-	val.ty = ty
+	val.setType(ty)
 
 	var args []*obj
 	if consume("(") {
@@ -208,7 +236,7 @@ func declarator(ty *typ) (*obj, []*obj) {
 
 // compoundStmt = (declaration | stmt)* "}"
 func compoundStmt() statement {
-	ret := blockStmtNode{code: []statement{}}
+	ret := &blockStmtNode{code: []statement{}}
 	for !consume("}") {
 		if equalToken(tokenKindType) {
 			ret.code = append(ret.code, declaration()...)
@@ -229,8 +257,8 @@ func declaration() []statement {
 		}
 		v, _ := declarator(ty)
 		if consume("=") {
-			n := assignNode{op: "=", lhs: v, rhs: expr()}
-			ret = append(ret, exprStmtNode{child: n})
+			n := &assignNode{op: "=", lhs: v, rhs: expr()}
+			ret = append(ret, &exprStmtNode{child: n})
 		}
 		if consume(";") {
 			break
@@ -241,7 +269,7 @@ func declaration() []statement {
 
 func stmt() statement {
 	if consume("return") {
-		ret := returnStmtNode{child: expr()}
+		ret := &returnStmtNode{child: expr()}
 		expect(";")
 		return ret
 	} else if consume("{") {
@@ -255,7 +283,7 @@ func stmt() statement {
 	} else {
 		ret := expr()
 		expect(";")
-		return exprStmtNode{child: ret}
+		return &exprStmtNode{child: ret}
 	}
 }
 
@@ -266,9 +294,9 @@ func ifStmt() statement {
 	then := stmt()
 	if consume("else") {
 		els := stmt()
-		return ifStmtNode{cond: cond, then: then, els: els}
+		return &ifStmtNode{cond: cond, then: then, els: els}
 	} else {
-		return ifStmtNode{cond: cond, then: then, els: nil}
+		return &ifStmtNode{cond: cond, then: then, els: nil}
 	}
 }
 
@@ -277,7 +305,7 @@ func whileStmt() statement {
 	cond := expr()
 	expect(")")
 	then := stmt()
-	return forStmtNode{ini: nil, cond: cond, step: nil, then: then}
+	return &forStmtNode{ini: nil, cond: cond, step: nil, then: then}
 }
 
 func forStmt() statement {
@@ -295,7 +323,7 @@ func forStmt() statement {
 		step = expr()
 	}
 	then := stmt()
-	return forStmtNode{ini: ini, cond: cond, step: step, then: then}
+	return &forStmtNode{ini: ini, cond: cond, step: step, then: then}
 }
 
 // expr = assign
@@ -307,7 +335,7 @@ func expr() expression {
 func assign() expression {
 	ret := equality()
 	if consume("=") {
-		ret = assignNode{op: "=", lhs: ret, rhs: assign()}
+		ret = &assignNode{op: "=", lhs: ret, rhs: assign()}
 	}
 	return ret
 }
@@ -318,9 +346,9 @@ func equality() expression {
 	for {
 		switch {
 		case consume("=="):
-			ret = binaryNode{op: "==", lhs: ret, rhs: relational()}
+			ret = &binaryNode{op: "==", lhs: ret, rhs: relational()}
 		case consume("!="):
-			ret = binaryNode{op: "!=", lhs: ret, rhs: relational()}
+			ret = &binaryNode{op: "!=", lhs: ret, rhs: relational()}
 		default:
 			return ret
 		}
@@ -333,13 +361,13 @@ func relational() expression {
 	for {
 		switch {
 		case consume("<"):
-			ret = binaryNode{op: "<", lhs: ret, rhs: add()}
+			ret = &binaryNode{op: "<", lhs: ret, rhs: add()}
 		case consume("<="):
-			ret = binaryNode{op: "<=", lhs: ret, rhs: add()}
+			ret = &binaryNode{op: "<=", lhs: ret, rhs: add()}
 		case consume(">"):
-			ret = binaryNode{op: "<", lhs: add(), rhs: ret}
+			ret = &binaryNode{op: "<", lhs: add(), rhs: ret}
 		case consume(">="):
-			ret = binaryNode{op: "<=", lhs: add(), rhs: ret}
+			ret = &binaryNode{op: "<=", lhs: add(), rhs: ret}
 		default:
 			return ret
 		}
@@ -352,9 +380,9 @@ func add() expression {
 	for {
 		switch {
 		case consume("+"):
-			ret = binaryNode{op: "+", lhs: ret, rhs: mul()}
+			ret = newAddBinary(ret, mul())
 		case consume("-"):
-			ret = binaryNode{op: "-", lhs: ret, rhs: mul()}
+			ret = newSubBinary(ret, mul())
 		default:
 			return ret
 		}
@@ -367,9 +395,9 @@ func mul() expression {
 	for {
 		switch {
 		case consume("*"):
-			ret = binaryNode{op: "*", lhs: ret, rhs: unary()}
+			ret = &binaryNode{op: "*", lhs: ret, rhs: unary()}
 		case consume("/"):
-			ret = binaryNode{op: "/", lhs: ret, rhs: unary()}
+			ret = &binaryNode{op: "/", lhs: ret, rhs: unary()}
 		default:
 			return ret
 		}
@@ -380,13 +408,13 @@ func mul() expression {
 func unary() expression {
 	switch {
 	case consume("-"):
-		return binaryNode{op: "-", lhs: intLit{val: 0}, rhs: unary()}
+		return &binaryNode{op: "-", lhs: &intLit{val: 0}, rhs: unary()}
 	case consume("+"):
 		return unary()
 	case consume("&"):
-		return addrNode{child: unary()}
+		return &addrNode{child: unary()}
 	case consume("*"):
-		return derefNode{child: unary()}
+		return &derefNode{child: unary()}
 	default:
 		return primary()
 	}
@@ -402,7 +430,7 @@ func primary() expression {
 
 	if tok := consumeToken(tokenKindIdent); tok != nil {
 		if consume("(") {
-			return funcCallNode{name: tok.val, args: callArgs()}
+			return &funcCallNode{name: tok.val, args: callArgs(), ty: newLiteralType("int")}
 		} else {
 			lv := findLocal(tok.val)
 			if lv == nil {
@@ -430,7 +458,54 @@ func callArgs() (args []expression) {
 }
 
 func num() expression {
-	ret := intLit{val: tokens[0].num}
+	ret := &intLit{val: tokens[0].num}
 	advance()
 	return ret
+}
+
+func newAddBinary(lhs, rhs expression) expression {
+	addType(lhs)
+	addType(rhs)
+	// num + num
+	if lhs.getType().isInteger() && rhs.getType().isInteger() {
+		return &binaryNode{op: "+", lhs: lhs, rhs: rhs}
+	}
+
+	// canonicalize num + ptr to ptr + num
+	if lhs.getType().isInteger() && rhs.getType().isPointer() {
+		tmp := lhs
+		lhs = rhs
+		rhs = tmp
+	}
+
+	// ptr + num
+	if lhs.getType().isPointer() && rhs.getType().isInteger() {
+		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
+		return &binaryNode{op: "+", lhs: lhs, rhs: rhs}
+	}
+
+	panic("invalid operands")
+}
+
+func newSubBinary(lhs, rhs expression) expression {
+	addType(lhs)
+	addType(rhs)
+	// num - num
+	if lhs.getType().isInteger() && rhs.getType().isInteger() {
+		return &binaryNode{op: "-", lhs: lhs, rhs: rhs}
+	}
+
+	// ptr - num
+	if lhs.getType().isPointer() && rhs.getType().isInteger() {
+		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
+		return &binaryNode{op: "-", lhs: lhs, rhs: rhs}
+	}
+
+	// ptr - ptr, which returns how many elements are between the two.
+	if lhs.getType().isPointer() && rhs.getType().isPointer() {
+		lhs = &binaryNode{op: "-", lhs: lhs, rhs: rhs, ty: newLiteralType("int")}
+		return &binaryNode{op: "/", lhs: lhs, rhs: &intLit{val: 8}}
+	}
+
+	panic("invalid operands")
 }

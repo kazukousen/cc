@@ -93,8 +93,13 @@ assert 136 'int main() { return add6(1,2,add6(3,add6(4,5,6,7,8,9),10,11,12,13),1
 
 assert 3 'int main() { int x=3; return *&x; }'
 assert 3 'int main() { int x=3; int y=&x; int z=&y; return **z; }'
-assert 5 'int main() { int x=3; int y=5; return *(&x+8); }'
-assert 3 'int main() { int x=3; int y=5; return *(&y-8); }'
+assert 5 'int main() { int x=3; int y=5; return *(&x+1); }'
+assert 3 'int main() { int x=3; int y=5; return *(&y-1); }'
+assert 5 'int main() { int x=3; int y=5; return *(&x-(-1)); }'
+assert 5 'int main() { int x=3; int y=&x; *y=5; return x; }'
+assert 7 'int main() { int x=3; int y=5; *(&x+1)=7; return y; }'
+assert 7 'int main() { int x=3; int y=5; *(&y-2+1)=7; return x; }'
+assert 5 'int main() { int x=3; return (&x+2)-&x+3; }'
 assert 8 'int main() { int x, y; x=3; y=5; return x+y; }'
 assert 8 'int main() { int x=3, y=5; return x+y; }'
 
