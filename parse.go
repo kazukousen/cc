@@ -410,7 +410,7 @@ func mul() expression {
 	}
 }
 
-// unary = ("-" | "+" | "&" | "*") unary | primary
+// unary = ("-" | "+" | "&" | "*") unary | postfix
 func unary() expression {
 	switch {
 	case consume("-"):
@@ -422,8 +422,20 @@ func unary() expression {
 	case consume("*"):
 		return &derefNode{child: unary()}
 	default:
-		return primary()
+		return postfix()
 	}
+}
+
+// postfix = primary ("[" expr "]")*
+func postfix() expression {
+	ret := primary()
+
+	if consume("[") {
+		ret = &derefNode{child: newAddBinary(expr(), ret)}
+		expect("]")
+	}
+
+	return ret
 }
 
 // primary = "(" expr ")" | ident ("(" callArgs)? | num
@@ -455,22 +467,7 @@ func primary() expression {
 		}
 	}
 
-	n := num()
-	if !consume("[") {
-		return n
-	}
-
-	var lv *obj
-	if tok := consumeToken(tokenKindIdent); tok != nil {
-		lv = findLocal(tok.val)
-	}
-	if lv == nil {
-		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier:", tokens[0].val)
-		os.Exit(1)
-	}
-
-	expect("]")
-	return &derefNode{child: newAddBinary(lv, n)}
+	return num()
 }
 
 // callArgs = (assign ("," assign)*)? ")"
