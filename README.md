@@ -7,7 +7,7 @@ funcDecl     = declspec declarator "{" compoundStmt
 declaration  = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 declspec     = "int"
 declarator   = "*"* ident type-suffix
-type-suffix   = "(" func-params | ε
+type-suffix   = "(" func-params | "[" num "]" | ε
 func-params  = (param ("," param)*)? ")"
 param        = declspec declarator
 stmt         = expr ";" | "{ compoundStmt | returnStmt | ifStmt | whileStmt | forStmt

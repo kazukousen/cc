@@ -229,7 +229,7 @@ func declarator(ty *typ) *typ {
 	return ty
 }
 
-// type-suffix = "(" func-params | ε
+// type-suffix = "(" func-params | "[" num "]" | ε
 func typeSuffix(ty *typ) *typ {
 	if consume("(") {
 		return funcParams(ty)
