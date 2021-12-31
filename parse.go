@@ -443,7 +443,15 @@ func primary() expression {
 				_, _ = fmt.Fprintln(os.Stderr, "Undefined variable", tok.val)
 				os.Exit(1)
 			}
-			return lv
+
+			if !consume("[") {
+				return lv
+			}
+
+			length := num().val
+			expect("]")
+
+			return &derefNode{child: newAddBinary(lv, &intLit{val: length})}
 		}
 	}
 
