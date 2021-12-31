@@ -6,7 +6,10 @@ program      = funcDecl*
 funcDecl     = declspec declarator "{" compoundStmt
 declaration  = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 declspec     = "int"
-declarator   = "*"* ident ("(" (declspec declarator ("," declspec declarator)*)? ")")?
+declarator   = "*"* ident type-suffix
+type-suffix   = "(" func-params | ε
+func-params  = (param ("," param)*)? ")"
+param        = declspec declarator
 stmt         = expr ";" | "{ compoundStmt | returnStmt | ifStmt | whileStmt | forStmt
 compoundStmt = (declaration | stmt)* "}"
 returnStmt   = "return" expr ";"

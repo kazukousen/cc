@@ -14,6 +14,8 @@ const (
 type typ struct {
 	kind   typeKind
 	base   *typ
+	name   string
+	params []*typ
 	size   int
 	length int
 }
@@ -45,6 +47,7 @@ func pointerTo(base *typ) *typ {
 	return &typ{
 		kind: typeKindPtr,
 		base: base,
+		name: base.name,
 		size: 8,
 	}
 }
@@ -53,6 +56,7 @@ func arrayOf(base *typ, length int) *typ {
 	return &typ{
 		kind:   typeKindArray,
 		base:   base,
+		name:   base.name,
 		size:   base.size * length,
 		length: length,
 	}

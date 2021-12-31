@@ -40,7 +40,7 @@ func advance() {
 type function struct {
 	name      string
 	locals    []*obj
-	args      []*obj
+	params    []*typ
 	body      statement
 	stackSize int
 }
@@ -155,10 +155,11 @@ func findLocal(name string) *obj {
 	return nil
 }
 
-func newNodeLocal(name string) *obj {
+func newNodeLocal(ty *typ) *obj {
 
 	lv := &obj{
-		name: name,
+		name: ty.name,
+		ty:   ty,
 	}
 	locals = append(locals, lv)
 
@@ -178,11 +179,15 @@ func funcDecl() *function {
 	locals = []*obj{}
 
 	ty := declSpec()
-	v, args := declarator(ty)
+	ty = declarator(ty)
 
 	f := &function{
-		name: v.name,
-		args: args,
+		name:   ty.name,
+		params: ty.params,
+	}
+
+	for _, p := range f.params {
+		newNodeLocal(p)
 	}
 
 	expect("{")
@@ -204,7 +209,8 @@ func declSpec() *typ {
 	return newLiteralType(tok.val)
 }
 
-func declarator(ty *typ) (*obj, []*obj) {
+// declarator = "*"* ident type-suffix
+func declarator(ty *typ) *typ {
 
 	for consume("*") {
 		ty = pointerTo(ty)
@@ -215,29 +221,42 @@ func declarator(ty *typ) (*obj, []*obj) {
 		_, _ = fmt.Fprintln(os.Stderr, "Expect an identifier in declarator:", tokens[0].val)
 		os.Exit(1)
 	}
-	lv := newNodeLocal(tok.val)
-	lv.setType(ty)
 
-	var args []*obj
+	ty.name = tok.val
+
+	ty = typeSuffix(ty)
+
+	return ty
+}
+
+// type-suffix = "(" func-params | ε
+func typeSuffix(ty *typ) *typ {
 	if consume("(") {
-		for i := 0; !consume(")"); i++ {
-			if i > 0 {
-				expect(",")
-			}
-			ty := declSpec()
-			v, ps := declarator(ty)
-			args = append(args, v)
-			args = append(args, ps...)
-		}
+		return funcParams(ty)
 	}
 
 	if consume("[") {
 		length := num().val
 		expect("]")
-		lv.setType(arrayOf(ty, length))
+		return arrayOf(ty, length)
 	}
 
-	return lv, args
+	return ty
+}
+
+// func-params = (param ("," param)*)? ")"
+func funcParams(ty *typ) *typ {
+	var params []*typ
+	for i := 0; !consume(")"); i++ {
+		if i > 0 {
+			expect(",")
+		}
+		p := declSpec()
+		p = declarator(p)
+		params = append(params, p)
+	}
+	ty.params = params
+	return ty
 }
 
 // compoundStmt = (declaration | stmt)* "}"
@@ -261,9 +280,10 @@ func declaration() []statement {
 		if i > 0 {
 			expect(",")
 		}
-		v, _ := declarator(ty)
+		ty = declarator(ty)
+		lv := newNodeLocal(ty)
 		if consume("=") {
-			n := &assignNode{op: "=", lhs: v, rhs: expr()}
+			n := &assignNode{op: "=", lhs: lv, rhs: expr()}
 			ret = append(ret, &exprStmtNode{child: n})
 		}
 		if consume(";") {

@@ -29,8 +29,8 @@ func codegen(funcs []*function) {
 	sub rsp, %[2]d
 `, funcName, f.stackSize)
 
-		for i, arg := range f.args {
-			fmt.Printf("	mov [rbp%d], %s\n", arg.offset, argRegisters[i])
+		for i, p := range f.params {
+			fmt.Printf("	mov [rbp%d], %s\n", findLocal(p.name).offset, argRegisters[i])
 		}
 
 		gen(f.body)
