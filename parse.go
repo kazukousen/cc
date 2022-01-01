@@ -193,8 +193,8 @@ func funcDecl() *function {
 	expect("{")
 	f.body = compoundStmt()
 	f.locals = locals
+	f.stackSize = assignLVarOffsets()
 	addType(f.body)
-	f.stackSize = calcStackSize(f.locals)
 
 	return f
 }
@@ -229,7 +229,7 @@ func declarator(ty *typ) *typ {
 	return ty
 }
 
-// type-suffix = "(" func-params | "[" num "]" | ε
+// type-suffix = "(" func-params | "[" num "]" type-suffix | ε
 func typeSuffix(ty *typ) *typ {
 	if consume("(") {
 		return funcParams(ty)
@@ -238,7 +238,9 @@ func typeSuffix(ty *typ) *typ {
 	if consume("[") {
 		length := num().val
 		expect("]")
-		return arrayOf(ty, length)
+		ty = typeSuffix(ty)
+		ty = arrayOf(ty, length)
+		return ty
 	}
 
 	return ty
@@ -526,7 +528,7 @@ func newAddBinary(lhs, rhs expression) expression {
 
 	// ptr + num
 	if lhs.getType().hasBase() && rhs.getType().isInteger() {
-		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
+		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: lhs.getType().base.size}}
 		return &binaryNode{op: "+", lhs: lhs, rhs: rhs}
 	}
 
@@ -543,14 +545,14 @@ func newSubBinary(lhs, rhs expression) expression {
 
 	// ptr - num
 	if lhs.getType().hasBase() && rhs.getType().isInteger() {
-		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: 8}}
+		rhs = &binaryNode{op: "*", lhs: rhs, rhs: &intLit{val: lhs.getType().base.size}}
 		return &binaryNode{op: "-", lhs: lhs, rhs: rhs}
 	}
 
 	// ptr - ptr, which returns how many elements are between the two.
 	if lhs.getType().hasBase() && rhs.getType().hasBase() {
-		lhs = &binaryNode{op: "-", lhs: lhs, rhs: rhs, ty: newLiteralType("int")}
-		return &binaryNode{op: "/", lhs: lhs, rhs: &intLit{val: 8}}
+		n := &binaryNode{op: "-", lhs: lhs, rhs: rhs, ty: newLiteralType("int")}
+		return &binaryNode{op: "/", lhs: n, rhs: &intLit{val: lhs.getType().base.size}}
 	}
 
 	panic("invalid operands")

@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type typeKind int
 
 const (
@@ -62,12 +60,14 @@ func arrayOf(base *typ, length int) *typ {
 	}
 }
 
-func calcStackSize(vs []*obj) int {
-	var ret int
-	for _, v := range vs {
-		ret += v.ty.size
+func assignLVarOffsets() int {
+	offset := 0
+	for i := len(locals) - 1; i >= 0; i-- {
+		lv := locals[i]
+		offset += lv.ty.size
+		lv.offset = offset
 	}
-	return ret
+	return offset
 }
 
 func addType(n interface{}) {
@@ -94,10 +94,11 @@ func addType(n interface{}) {
 	case *derefNode:
 		addType(n.child)
 		ty := n.child.getType()
-		if !ty.hasBase() {
-			panic(fmt.Sprintf("invalid pointer dereference: %v", ty))
+		if ty.hasBase() {
+			n.setType(ty.base)
+			return
 		}
-		n.setType(ty.base)
+		n.setType(ty)
 		return
 	case *binaryNode:
 		addType(n.lhs)
@@ -141,7 +142,6 @@ func addType(n interface{}) {
 	case *assignNode:
 		addType(n.lhs)
 		addType(n.rhs)
-		n.lhs.setType(n.rhs.getType())
 		n.setType(n.lhs.getType())
 		return
 	}
