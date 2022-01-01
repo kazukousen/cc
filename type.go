@@ -5,6 +5,7 @@ type typeKind int
 const (
 	typeKindInt typeKind = iota
 	typeKindBool
+	typeKindChar
 	typeKindArray
 	typeKindPtr
 )
@@ -19,7 +20,7 @@ type typ struct {
 }
 
 func (ty *typ) isInteger() bool {
-	return ty.kind == typeKindInt
+	return ty.kind == typeKindInt || ty.kind == typeKindChar
 }
 
 func (ty *typ) hasBase() bool {
@@ -30,10 +31,12 @@ func newLiteralType(s string) *typ {
 	typeKindMap := map[string]typeKind{
 		"int":  typeKindInt,
 		"bool": typeKindBool,
+		"char": typeKindChar,
 	}
 	typeKindSize := map[string]int{
 		"int":  8,
 		"bool": 1,
+		"char": 1,
 	}
 	return &typ{
 		kind: typeKindMap[s],

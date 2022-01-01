@@ -8,7 +8,8 @@ import (
 var label = 0
 var funcName string
 
-var argRegisters = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+var argRegisters64 = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+var argRegisters8 = []string{"dil", "sil", "dl", "cl", "r8b", "r9b"}
 
 func codegen(prog *program) {
 	fmt.Printf(".intel_syntax noprefix\n")
@@ -38,7 +39,11 @@ func emitText(funcs []*function) {
 `, funcName, f.stackSize)
 
 		for i, p := range f.params {
-			fmt.Printf("	mov [rbp-%d], %s\n", findLocal(p.name).offset, argRegisters[i])
+			if p.size == 1 {
+				fmt.Printf("	mov [rbp-%d], %s\n", findLocal(p.name).offset, argRegisters8[i])
+			} else {
+				fmt.Printf("	mov [rbp-%d], %s\n", findLocal(p.name).offset, argRegisters64[i])
+			}
 		}
 
 		gen(f.body)
@@ -122,7 +127,7 @@ func gen(n interface{}) {
 		}
 
 		for i := len(n.args) - 1; i >= 0; i-- {
-			fmt.Printf("	pop %s\n", argRegisters[i])
+			fmt.Printf("	pop %s\n", argRegisters64[i])
 		}
 
 		fmt.Printf("	call %s\n", n.name)
@@ -201,9 +206,15 @@ func load(ty *typ) {
 	if ty.kind == typeKindArray {
 		return
 	}
-	fmt.Printf("	pop rax\n")
-	fmt.Printf("	mov rax, [rax]\n")
-	fmt.Printf("	push rax\n")
+	if ty.size == 1 {
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	movzx rax, byte ptr [rax]\n")
+		fmt.Printf("	push rax\n")
+	} else {
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	mov rax, [rax]\n")
+		fmt.Printf("	push rax\n")
+	}
 }
 
 func store() {

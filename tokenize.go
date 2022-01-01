@@ -35,7 +35,7 @@ func identifierToken(val string) *token {
 			return &token{kind: tokenKindReserved, val: val}
 		}
 	}
-	for _, w := range []string{"int"} {
+	for _, w := range []string{"int", "char"} {
 		if val == w {
 			return &token{kind: tokenKindType, val: val}
 		}
