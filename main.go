@@ -21,7 +21,7 @@ func main() {
 	in = os.Args[1]
 
 	tokenize()
-	funcs := program()
+	prog := parse()
 
-	codegen(funcs)
+	codegen(prog)
 }

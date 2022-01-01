@@ -10,13 +10,27 @@ var funcName string
 
 var argRegisters = []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
 
-func codegen(funcs []*function) {
+func codegen(prog *program) {
 	fmt.Printf(".intel_syntax noprefix\n")
+	emitData()
+	emitText(prog.funcs)
+}
+
+func emitData() {
+	for _, gv := range globals {
+		fmt.Printf(`	.data
+	.globl %[1]s
+%[1]s:
+	.zero %[2]d
+`, gv.name, gv.ty.size)
+	}
+}
+
+func emitText(funcs []*function) {
 	for _, f := range funcs {
-
 		funcName = f.name
-
-		fmt.Printf(`.globl %[1]s
+		fmt.Printf(`	.globl %[1]s
+	.text
 %[1]s:
 	push rbp
 	mov rbp, rsp
@@ -169,8 +183,12 @@ func gen(n interface{}) {
 func genAddr(n expression) {
 	switch n := n.(type) {
 	case *obj:
-		fmt.Printf("	lea rax, [rbp-%d]\n", n.offset)
-		fmt.Printf("	push rax\n")
+		if n.isLocal {
+			fmt.Printf("	lea rax, [rbp-%d]\n", n.offset)
+			fmt.Printf("	push rax\n")
+		} else {
+			fmt.Printf("	push offset %s\n", n.name)
+		}
 	case *derefNode:
 		gen(n.child)
 	default:

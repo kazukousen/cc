@@ -37,12 +37,26 @@ func advance() {
 	tokens = tokens[1:]
 }
 
+type program struct {
+	funcs []*function
+}
+
+var globals = make(map[string]*obj)
+
 type function struct {
 	name      string
-	locals    []*obj
 	params    []*typ
 	body      statement
 	stackSize int
+}
+
+type obj struct {
+	ty   *typ
+	name string
+
+	// local only
+	isLocal bool
+	offset  int
 }
 
 type expression interface {
@@ -77,12 +91,6 @@ type derefNode unaryNode
 type intLit struct {
 	ty  *typ
 	val int
-}
-
-type obj struct {
-	ty     *typ
-	name   string
-	offset int
 }
 
 type funcCallNode struct {
@@ -152,35 +160,65 @@ func findLocal(name string) *obj {
 			return lv
 		}
 	}
+
+	if gv, ok := globals[name]; ok {
+		return gv
+	}
+
 	return nil
 }
 
 func newNodeLocal(ty *typ) *obj {
 
 	lv := &obj{
-		name: ty.name,
-		ty:   ty,
+		name:    ty.name,
+		ty:      ty,
+		isLocal: true,
 	}
 	locals = append(locals, lv)
 
 	return lv
 }
 
-func program() (funcs []*function) {
-	for len(tokens) > 0 {
-		funcs = append(funcs, funcDecl())
+// program = decl*
+// decl = declspec declarator ("{" funcDecl | varDecl)
+func parse() *program {
+	prog := &program{
+		funcs: []*function{},
 	}
-	return
+	for len(tokens) > 0 {
+		ty := declSpec()
+		ty = declarator(ty)
+		if consume("{") {
+			prog.funcs = append(prog.funcs, funcDecl(ty))
+			continue
+		}
+		varDecl(ty)
+
+		for consume(",") {
+			ty = declarator(ty)
+			varDecl(ty)
+		}
+
+		expect(";")
+	}
+	return prog
 }
 
-// funcDecl = declspec declarator "{" compoundStmt
-func funcDecl() *function {
+func varDecl(ty *typ) {
+	gv, ok := globals[ty.name]
+	if !ok {
+		gv = &obj{
+			ty:   ty,
+			name: ty.name,
+		}
+	}
+	globals[ty.name] = gv
+}
 
+// funcDecl = compoundStmt
+func funcDecl(ty *typ) *function {
 	locals = []*obj{}
-
-	ty := declSpec()
-	ty = declarator(ty)
-
 	f := &function{
 		name:   ty.name,
 		params: ty.params,
@@ -190,9 +228,7 @@ func funcDecl() *function {
 		newNodeLocal(p)
 	}
 
-	expect("{")
 	f.body = compoundStmt()
-	f.locals = locals
 	f.stackSize = assignLVarOffsets()
 	addType(f.body)
 
@@ -247,6 +283,7 @@ func typeSuffix(ty *typ) *typ {
 }
 
 // func-params = (param ("," param)*)? ")"
+// param = declspec declarator
 func funcParams(ty *typ) *typ {
 	var params []*typ
 	for i := 0; !consume(")"); i++ {
