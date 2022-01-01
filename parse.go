@@ -460,12 +460,18 @@ func postfix() expression {
 	return ret
 }
 
-// primary = "(" expr ")" | ident ("(" callArgs)? | num
+// primary = "(" expr ")" | "sizeof" unary | ident ("(" callArgs)? | num
 func primary() expression {
 	if consume("(") {
 		ret := expr()
 		expect(")")
 		return ret
+	}
+
+	if consume("sizeof") {
+		n := unary()
+		addType(n)
+		return &intLit{val: n.getType().size}
 	}
 
 	if tok := consumeToken(tokenKindIdent); tok != nil {

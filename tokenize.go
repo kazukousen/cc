@@ -30,7 +30,7 @@ func isDigit() bool {
 }
 
 func identifierToken(val string) *token {
-	for _, w := range []string{"return", "if", "else", "while", "for"} {
+	for _, w := range []string{"return", "if", "else", "while", "for", "sizeof"} {
 		if val == w {
 			return &token{kind: tokenKindReserved, val: val}
 		}
