@@ -19,11 +19,16 @@ func codegen(prog *program) {
 
 func emitData() {
 	for _, gv := range globals {
-		fmt.Printf(`	.data
-	.globl %[1]s
-%[1]s:
-	.zero %[2]d
-`, gv.name, gv.ty.size)
+		fmt.Printf("	.data\n")
+		fmt.Printf("	.globl %s\n", gv.name)
+		fmt.Printf("%s:\n", gv.name)
+		if gv.initData != nil {
+			for _, b := range gv.initData {
+				fmt.Printf("	.byte %d\n", b)
+			}
+		} else {
+			fmt.Printf("	.zero %d\n", gv.ty.size)
+		}
 	}
 }
 

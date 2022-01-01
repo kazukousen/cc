@@ -10,7 +10,8 @@ type tokenKind int
 
 const (
 	tokenKindReserved tokenKind = iota
-	tokenKindNumber
+	tokenKindNumberLiteral
+	tokenKindStringLiteral
 	tokenKindIdent
 	tokenKindType
 )
@@ -19,6 +20,7 @@ type token struct {
 	kind tokenKind
 	val  string
 	num  int
+	str  string
 }
 
 func isAlpha() bool {
@@ -45,6 +47,20 @@ func identifierToken(val string) *token {
 
 func tokenize() {
 	for len(in) > 0 {
+
+		if in[0] == '"' {
+			start := len(userIn) - len(in)
+			in = in[1:]
+			for len(in) > 0 && in[0] != '"' {
+				in = in[1:]
+			}
+			end := len(userIn) - len(in)
+			str := userIn[start+1 : end]
+			str += "\000"
+			tokens = append(tokens, &token{kind: tokenKindStringLiteral, str: str})
+			in = in[1:]
+			continue
+		}
 
 		if in[0] == ' ' {
 			in = in[1:]
@@ -75,7 +91,7 @@ func tokenize() {
 
 		if isDigit() {
 			n := toInt()
-			tokens = append(tokens, &token{kind: tokenKindNumber, num: n})
+			tokens = append(tokens, &token{kind: tokenKindNumberLiteral, num: n})
 			continue
 		}
 

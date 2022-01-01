@@ -25,6 +25,6 @@ add          = mul ("+" mul | "-" mul)*
 mul          = unary ("*" unary | "/" unary)*
 unary        = ("+" | "-" | "*" | "&") unary | postfix
 postfix      = primary ("[" expr "]")*
-primary      = "(" expr ")" | "sizeof" unary | ident func-args? | num
+primary      = "(" expr ")" | "sizeof" unary | ident func-args? | num | str
 func-args    = "(" (assign ("," assign)*)? ")"
 ```

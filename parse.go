@@ -55,8 +55,9 @@ type obj struct {
 	name string
 
 	// local only
-	isLocal bool
-	offset  int
+	isLocal  bool
+	offset   int
+	initData []byte
 }
 
 type expression interface {
@@ -180,6 +181,35 @@ func newNodeLocal(ty *typ) *obj {
 	return lv
 }
 
+func newGlobalVariable(ty *typ) *obj {
+	if gv, ok := globals[ty.name]; ok {
+		return gv
+	}
+	gv := &obj{
+		ty:   ty,
+		name: ty.name,
+	}
+	globals[ty.name] = gv
+	return gv
+}
+
+var uniqueID = 0
+
+func newUniqueName() string {
+	s := fmt.Sprintf(".L..%d", uniqueID)
+	uniqueID++
+	return s
+}
+
+func newStringLiteral(s string) *obj {
+	ty := newLiteralType("char")
+	ty = arrayOf(ty, len(s))
+	ty.name = newUniqueName()
+	gv := newGlobalVariable(ty)
+	gv.initData = []byte(s)
+	return gv
+}
+
 // program = decl*
 // decl = declspec declarator ("{" funcDecl | varDecl)
 func parse() *program {
@@ -206,14 +236,7 @@ func parse() *program {
 }
 
 func varDecl(ty *typ) {
-	gv, ok := globals[ty.name]
-	if !ok {
-		gv = &obj{
-			ty:   ty,
-			name: ty.name,
-		}
-	}
-	globals[ty.name] = gv
+	_ = newGlobalVariable(ty)
 }
 
 // funcDecl = compoundStmt
@@ -530,6 +553,10 @@ func primary() expression {
 
 			return &derefNode{child: newAddBinary(lv, &intLit{val: length})}
 		}
+	}
+
+	if tok := consumeToken(tokenKindStringLiteral); tok != nil {
+		return newStringLiteral(tok.str)
 	}
 
 	return num()
