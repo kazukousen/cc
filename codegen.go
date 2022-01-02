@@ -45,9 +45,9 @@ func emitText(funcs []*function) {
 
 		for i, p := range f.params {
 			if p.size == 1 {
-				fmt.Printf("	mov [rbp-%d], %s\n", findLocal(p.name).offset, argRegisters8[i])
+				fmt.Printf("	mov [rbp-%d], %s\n", f.getLocal(p.name).offset, argRegisters8[i])
 			} else {
-				fmt.Printf("	mov [rbp-%d], %s\n", findLocal(p.name).offset, argRegisters64[i])
+				fmt.Printf("	mov [rbp-%d], %s\n", f.getLocal(p.name).offset, argRegisters64[i])
 			}
 		}
 

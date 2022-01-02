@@ -49,16 +49,7 @@ func tokenize() {
 	for len(in) > 0 {
 
 		if in[0] == '"' {
-			start := len(userIn) - len(in)
-			in = in[1:]
-			for len(in) > 0 && in[0] != '"' {
-				in = in[1:]
-			}
-			end := len(userIn) - len(in)
-			str := userIn[start+1 : end]
-			str += "\000"
-			tokens = append(tokens, &token{kind: tokenKindStringLiteral, str: str})
-			in = in[1:]
+			tokens = append(tokens, toString())
 			continue
 		}
 
@@ -105,6 +96,21 @@ func errorAt(msg string) {
 	_, _ = fmt.Fprintln(os.Stderr, strings.Repeat(" ", n), "^")
 	_, _ = fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
+}
+
+func toString() *token {
+	start := len(userIn) - len(in)
+	in = in[1:]
+	for len(in) > 0 && in[0] != '"' {
+		in = in[1:]
+	}
+	end := len(userIn) - len(in)
+	str := userIn[start+1 : end]
+	str += "\000"
+
+	in = in[1:]
+
+	return &token{kind: tokenKindStringLiteral, str: str}
 }
 
 func toInt() int {

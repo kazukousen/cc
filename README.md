@@ -3,7 +3,8 @@
 
 ```
 program      = funcDecl*
-decl         = declspec declarator ("{" compoundStmt | ";")
+decl         = declspec declarator ("{" funcDecl | varDecl)
+varDecl      = ("," declarator)* ";"
 funcDecl     = compoundStmt
 declaration  = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
 declspec     = "int" | "char"

@@ -47,6 +47,7 @@ type function struct {
 	name      string
 	params    []*typ
 	body      statement
+	locals    []*obj
 	stackSize int
 }
 
@@ -154,11 +155,44 @@ func (*ifStmtNode) isStmt()    {}
 func (*forStmtNode) isStmt()   {}
 func (*blockStmtNode) isStmt() {}
 
-func findLocal(name string) *obj {
-	for i := range locals {
-		lv := locals[i]
+type scope struct {
+	vars []*obj
+}
+
+var scopes []*scope
+
+func enterScope() {
+	scopes = append(scopes, &scope{vars: []*obj{}})
+}
+
+func leaveScope() {
+	scopes = scopes[:len(scopes)-1]
+}
+
+func pushScope(v *obj) {
+	sc := scopes[len(scopes)-1]
+	sc.vars = append(sc.vars, v)
+}
+
+func (f *function) getLocal(name string) *obj {
+	for i := range f.locals {
+		lv := f.locals[i]
 		if lv.name == name {
 			return lv
+		}
+	}
+
+	return nil
+}
+
+func findLocalInScope(name string) *obj {
+	for i := len(scopes) - 1; i >= 0; i-- {
+		sc := scopes[i]
+		for vi := range sc.vars {
+			lv := sc.vars[vi]
+			if lv.name == name {
+				return lv
+			}
 		}
 	}
 
@@ -176,6 +210,8 @@ func newNodeLocal(ty *typ) *obj {
 		ty:      ty,
 		isLocal: true,
 	}
+
+	pushScope(lv)
 	locals = append(locals, lv)
 
 	return lv
@@ -224,28 +260,32 @@ func parse() *program {
 			continue
 		}
 		varDecl(ty)
-
-		for consume(",") {
-			ty = declarator(ty)
-			varDecl(ty)
-		}
-
-		expect(";")
 	}
 	return prog
 }
 
+// varDecl = ("," declarator)* ";"
 func varDecl(ty *typ) {
 	_ = newGlobalVariable(ty)
+	for consume(",") {
+		ty = declarator(ty)
+		_ = newGlobalVariable(ty)
+	}
+	expect(";")
 }
 
 // funcDecl = compoundStmt
 func funcDecl(ty *typ) *function {
+
 	locals = []*obj{}
+	scopes = []*scope{}
+
 	f := &function{
 		name:   ty.name,
 		params: ty.params,
 	}
+
+	enterScope()
 
 	for _, p := range f.params {
 		newNodeLocal(p)
@@ -254,6 +294,10 @@ func funcDecl(ty *typ) *function {
 	f.body = compoundStmt()
 	f.stackSize = assignLVarOffsets()
 	addType(f.body)
+
+	leaveScope()
+
+	f.locals = locals
 
 	return f
 }
@@ -323,6 +367,9 @@ func funcParams(ty *typ) *typ {
 
 // compoundStmt = (declaration | stmt)* "}"
 func compoundStmt() statement {
+
+	enterScope()
+
 	ret := &blockStmtNode{code: []statement{}}
 	for !consume("}") {
 		if equalToken(tokenKindType) {
@@ -331,6 +378,9 @@ func compoundStmt() statement {
 			ret.code = append(ret.code, stmt())
 		}
 	}
+
+	leaveScope()
+
 	return ret
 }
 
@@ -538,7 +588,7 @@ func primary() expression {
 		if consume("(") {
 			return &funcCallNode{name: tok.val, args: callArgs(), ty: newLiteralType("int")}
 		} else {
-			lv := findLocal(tok.val)
+			lv := findLocalInScope(tok.val)
 			if lv == nil {
 				_, _ = fmt.Fprintln(os.Stderr, "Undefined variable", tok.val)
 				os.Exit(1)
