@@ -37,7 +37,7 @@ func identifierToken(val string) *token {
 			return &token{kind: tokenKindReserved, val: val}
 		}
 	}
-	for _, w := range []string{"int", "char"} {
+	for _, w := range []string{"int", "char", "struct"} {
 		if val == w {
 			return &token{kind: tokenKindType, val: val}
 		}
@@ -69,7 +69,7 @@ func tokenize() {
 			continue
 		}
 
-		if strings.Contains("+-*/()<>=!;{},&[]", string(in[0])) {
+		if strings.Contains("+-*/()<>=!;{},&[].", string(in[0])) {
 			if len(in) > 1 && (in[0:2] == "<=" || in[0:2] == ">=" || in[0:2] == "==" || in[0:2] == "!=") {
 				tokens = append(tokens, &token{kind: tokenKindReserved, val: in[0:2]})
 				in = in[2:]

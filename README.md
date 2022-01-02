@@ -7,8 +7,9 @@ decl         = declspec declarator ("{" funcDecl | varDecl)
 varDecl      = ("," declarator)* ";"
 funcDecl     = compoundStmt
 declaration  = declspec declarator ("=" expr)? ("," declarator ("=" expr)?)*)? ";"
-declspec     = "int" | "char"
+declspec     = "int" | "char" | struct-decl
 declarator   = "*"* ident type-suffix
+struct-decl  = "{" (declspec declarator ("," declarator)* ";")* "}"
 type-suffix  = "(" func-params | "[" num "]" type-suffix | ε
 func-params  = (param ("," param)*)? ")"
 param        = declspec declarator

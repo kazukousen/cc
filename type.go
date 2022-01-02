@@ -7,16 +7,24 @@ const (
 	typeKindBool
 	typeKindChar
 	typeKindArray
+	typeKindStruct
 	typeKindPtr
 )
 
 type typ struct {
-	kind   typeKind
-	base   *typ
-	name   string
+	kind typeKind
+	base *typ
+	name string
+	size int
+
+	// func
 	params []*typ
-	size   int
+
+	// array
 	length int
+
+	// struct
+	members []*member
 }
 
 func (ty *typ) isInteger() bool {
@@ -41,6 +49,28 @@ func newLiteralType(s string) *typ {
 	return &typ{
 		kind: typeKindMap[s],
 		size: typeKindSize[s],
+	}
+}
+
+type member struct {
+	ty     *typ
+	name   string
+	offset int
+}
+
+func newStructType(members []*member) *typ {
+
+	offset := 0
+	for i := range members {
+		m := members[i]
+		m.offset = offset
+		offset += m.ty.size
+	}
+
+	return &typ{
+		kind:    typeKindStruct,
+		size:    offset,
+		members: members,
 	}
 }
 
@@ -115,6 +145,9 @@ func addType(n interface{}) {
 		return
 	case *obj:
 		return
+	case *memberNode:
+		addType(n.child)
+		n.setType(n.member.ty)
 	case *funcCallNode:
 		for _, c := range n.args {
 			addType(c)

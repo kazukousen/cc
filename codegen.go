@@ -75,6 +75,10 @@ func gen(n interface{}) {
 		genAddr(n)
 		load(n.getType())
 		return
+	case *memberNode:
+		genAddr(n)
+		load(n.getType())
+		return
 	case *assignNode:
 		genAddr(n.lhs)
 		gen(n.rhs)
@@ -201,6 +205,11 @@ func genAddr(n expression) {
 		}
 	case *derefNode:
 		gen(n.child)
+	case *memberNode:
+		genAddr(n.child)
+		fmt.Printf("	pop rax\n")
+		fmt.Printf("	add rax, %d\n", n.member.offset)
+		fmt.Printf("	push rax\n")
 	default:
 		_, _ = fmt.Fprintln(os.Stderr, "Not an identifier")
 		os.Exit(1)

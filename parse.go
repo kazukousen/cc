@@ -55,9 +55,12 @@ type obj struct {
 	ty   *typ
 	name string
 
-	// local only
-	isLocal  bool
-	offset   int
+	isLocal bool
+
+	// local variable
+	offset int
+
+	// global variable
 	initData []byte
 }
 
@@ -100,6 +103,17 @@ type funcCallNode struct {
 	name string
 	args []expression
 }
+
+type memberNode struct {
+	unaryNode
+	member *member
+}
+
+func (n *memberNode) isExpr() {}
+
+func (n *memberNode) getType() *typ { return n.ty }
+
+func (n *memberNode) setType(ty *typ) { n.ty = ty }
 
 func (*binaryNode) isExpr()     {}
 func (*assignNode) isExpr()     {}
@@ -302,6 +316,7 @@ func funcDecl(ty *typ) *function {
 	return f
 }
 
+// declspec = "int" | "char" | struct-decl
 func declSpec() *typ {
 	tok := consumeToken(tokenKindType)
 	if tok == nil {
@@ -309,11 +324,42 @@ func declSpec() *typ {
 		os.Exit(1)
 	}
 
+	if tok.val == "struct" {
+		return structDecl()
+	}
+
 	return newLiteralType(tok.val)
 }
 
+// struct-decl = "{" (declspec declarator ("," declarator)* ";")* "}"
+func structDecl() *typ {
+
+	expect("{")
+
+	var members []*member
+	for !consume("}") {
+		baseTy := declSpec()
+
+		for i := 0; !consume(";"); i++ {
+			if i > 0 {
+				expect(",")
+			}
+			ty := declarator(baseTy)
+			members = append(members, &member{
+				ty:   ty,
+				name: ty.name,
+			})
+		}
+	}
+
+	return newStructType(members)
+}
+
 // declarator = "*"* ident type-suffix
-func declarator(ty *typ) *typ {
+func declarator(baseTy *typ) *typ {
+
+	ty := new(typ)
+	*ty = *baseTy
 
 	for consume("*") {
 		ty = pointerTo(ty)
@@ -558,16 +604,48 @@ func unary() expression {
 	}
 }
 
-// postfix = primary ("[" expr "]")*
+// postfix = primary ("[" expr "]" | "." ident)*
 func postfix() expression {
 	ret := primary()
 
-	if consume("[") {
-		ret = &derefNode{child: newAddBinary(expr(), ret)}
-		expect("]")
+	for {
+		if consume("[") {
+			ret = &derefNode{child: newAddBinary(ret, expr())}
+			expect("]")
+			continue
+		}
+
+		if consume(".") {
+			ret = structRef(ret)
+			continue
+		}
+
+		return ret
+	}
+}
+
+func structRef(n expression) expression {
+	addType(n)
+	ty := n.getType()
+	if ty.kind != typeKindStruct {
+		panic("expected struct type")
 	}
 
-	return ret
+	tok := consumeToken(tokenKindIdent)
+	if tok == nil {
+		_, _ = fmt.Fprintln(os.Stderr, "ident expected", tok.val)
+		os.Exit(1)
+	}
+
+	var mem *member
+	for i := range ty.members {
+		m := ty.members[i]
+		if m.name == tok.val {
+			mem = m
+		}
+	}
+
+	return &memberNode{unaryNode: unaryNode{child: n}, member: mem}
 }
 
 // primary = "(" expr ")" | "sizeof" unary | ident ("(" callArgs)? | num
@@ -594,14 +672,7 @@ func primary() expression {
 				os.Exit(1)
 			}
 
-			if !consume("[") {
-				return lv
-			}
-
-			length := num().val
-			expect("]")
-
-			return &derefNode{child: newAddBinary(lv, &intLit{val: length})}
+			return lv
 		}
 	}
 
