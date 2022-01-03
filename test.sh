@@ -30,6 +30,17 @@ assert() {
   fi
 }
 
+assert 3 'int main() { struct t {int a;} x; struct t *y = &x; x.a=3; return y->a; }'
+assert 3 'int main() { struct t {int a;} x; struct t *y = &x; y->a=3; return x.a; }'
+
+assert 16 'int main() { struct t {int a; int b;} x; struct t y; return sizeof(y); }'
+
+assert 16 'int main() { struct {char a; int b;} x; return sizeof(x); }'
+assert 16 'int main() { struct {int a; char b;} x; return sizeof(x); }'
+
+assert 15 'int main() { int x; int y; char z; char *a=&y; char *b=&z; return b-a; }'
+assert 1 'int main() { int x; char y; int z; char *a=&y; char *b=&z; return b-a; }'
+
 assert 1 'int main() { struct {int a; int b;} x; x.a=1; x.b=2; return x.a; }'
 assert 2 'int main() { struct {int a; int b;} x; x.a=1; x.b=2; return x.b; }'
 assert 1 'int main() { struct {char a; int b; char c;} x; x.a=1; x.b=2; x.c=3; return x.a; }'
@@ -40,9 +51,6 @@ assert 0 'int main() { struct {char a; char b;} x[3]; char *p = x; p[0] = 0; ret
 assert 1 'int main() { struct {char a; char b;} x[3]; char *p = x; p[1] = 1; return x[0].b; }'
 assert 2 'int main() { struct {char a; char b;} x[3]; char *p = x; p[2] = 2; return x[1].a; }'
 assert 3 'int main() { struct {char a; char b;} x[3]; char *p = x; p[3] = 3; return x[1].b; }'
-
-assert 6 'int main() { struct {int a[3]; int b[5];} x; int *p = &x; x.a[0] = 6; return p[0]; }'
-assert 7 'int main() { struct {int a[3]; int b[5];} x; int *p = &x; x.b[0] = 7; return p[3]; }'
 
 assert 2 'int main() { int x=2; { int x=3; } return x; }'
 assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'

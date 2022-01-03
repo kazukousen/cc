@@ -12,10 +12,11 @@ const (
 )
 
 type typ struct {
-	kind typeKind
-	base *typ
-	name string
-	size int
+	kind  typeKind
+	base  *typ
+	name  string
+	size  int
+	align int
 
 	// func
 	params []*typ
@@ -35,6 +36,10 @@ func (ty *typ) hasBase() bool {
 	return ty.base != nil
 }
 
+func newType(kind typeKind, size, align int) *typ {
+	return &typ{kind: kind, size: size, align: align}
+}
+
 func newLiteralType(s string) *typ {
 	typeKindMap := map[string]typeKind{
 		"int":  typeKindInt,
@@ -46,10 +51,12 @@ func newLiteralType(s string) *typ {
 		"bool": 1,
 		"char": 1,
 	}
-	return &typ{
-		kind: typeKindMap[s],
-		size: typeKindSize[s],
+	typeKindAlign := map[string]int{
+		"int":  8,
+		"bool": 1,
+		"char": 1,
 	}
+	return newType(typeKindMap[s], typeKindSize[s], typeKindAlign[s])
 }
 
 type member struct {
@@ -60,37 +67,36 @@ type member struct {
 
 func newStructType(members []*member) *typ {
 
+	align := 1
 	offset := 0
 	for i := range members {
 		m := members[i]
-		m.offset = offset
+		m.offset = alignTo(offset, m.ty.align)
 		offset += m.ty.size
+
+		if align < m.ty.align {
+			align = m.ty.align
+		}
 	}
 
-	return &typ{
-		kind:    typeKindStruct,
-		size:    offset,
-		members: members,
-	}
+	ty := newType(typeKindStruct, alignTo(offset, align), align)
+	ty.members = members
+	return ty
 }
 
 func pointerTo(base *typ) *typ {
-	return &typ{
-		kind: typeKindPtr,
-		base: base,
-		name: base.name,
-		size: 8,
-	}
+	ty := newType(typeKindPtr, 8, 8)
+	ty.base = base
+	ty.name = base.name
+	return ty
 }
 
 func arrayOf(base *typ, length int) *typ {
-	return &typ{
-		kind:   typeKindArray,
-		base:   base,
-		name:   base.name,
-		size:   base.size * length,
-		length: length,
-	}
+	ty := newType(typeKindArray, base.size*length, base.align)
+	ty.base = base
+	ty.length = length
+	ty.name = base.name
+	return ty
 }
 
 func assignLVarOffsets() int {
@@ -98,9 +104,14 @@ func assignLVarOffsets() int {
 	for i := len(locals) - 1; i >= 0; i-- {
 		lv := locals[i]
 		offset += lv.ty.size
+		offset = alignTo(offset, lv.ty.align)
 		lv.offset = offset
 	}
-	return offset
+	return alignTo(offset, 16)
+}
+
+func alignTo(n, align int) int {
+	return (n + align - 1) / align * align
 }
 
 func addType(n interface{}) {

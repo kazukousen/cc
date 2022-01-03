@@ -70,7 +70,7 @@ func tokenize() {
 		}
 
 		if strings.Contains("+-*/()<>=!;{},&[].", string(in[0])) {
-			if len(in) > 1 && (in[0:2] == "<=" || in[0:2] == ">=" || in[0:2] == "==" || in[0:2] == "!=") {
+			if len(in) > 1 && (in[0:2] == "<=" || in[0:2] == ">=" || in[0:2] == "==" || in[0:2] == "!=" || in[0:2] == "->") {
 				tokens = append(tokens, &token{kind: tokenKindReserved, val: in[0:2]})
 				in = in[2:]
 			} else {

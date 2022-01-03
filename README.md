@@ -26,7 +26,7 @@ relational   = add ("<" add | "<=" add | ">" add | ">=" add)*
 add          = mul ("+" mul | "-" mul)*
 mul          = unary ("*" unary | "/" unary)*
 unary        = ("+" | "-" | "*" | "&") unary | postfix
-postfix      = primary ("[" expr "]")*
+postfix      = primary ("[" expr "]" | "." ident | "->" ident)*
 primary      = "(" expr ")" | "sizeof" unary | ident func-args? | num | str
 func-args    = "(" (assign ("," assign)*)? ")"
 ```

@@ -171,12 +171,13 @@ func (*blockStmtNode) isStmt() {}
 
 type scope struct {
 	vars []*obj
+	tags []*typ
 }
 
 var scopes []*scope
 
 func enterScope() {
-	scopes = append(scopes, &scope{vars: []*obj{}})
+	scopes = append(scopes, &scope{vars: []*obj{}, tags: []*typ{}})
 }
 
 func leaveScope() {
@@ -186,6 +187,24 @@ func leaveScope() {
 func pushScope(v *obj) {
 	sc := scopes[len(scopes)-1]
 	sc.vars = append(sc.vars, v)
+}
+
+func pushTagScope(t *typ) {
+	sc := scopes[len(scopes)-1]
+	sc.tags = append(sc.tags, t)
+}
+
+func findTag(name string) *typ {
+	for i := len(scopes) - 1; i >= 0; i-- {
+		sc := scopes[i]
+		for vi := range sc.vars {
+			t := sc.tags[vi]
+			if t.name == name {
+				return t
+			}
+		}
+	}
+	return nil
 }
 
 func (f *function) getLocal(name string) *obj {
@@ -331,8 +350,23 @@ func declSpec() *typ {
 	return newLiteralType(tok.val)
 }
 
-// struct-decl = "{" (declspec declarator ("," declarator)* ";")* "}"
+// struct-decl = ident? "{" (declspec declarator ("," declarator)* ";")* "}"
 func structDecl() *typ {
+
+	// Try to read a struct tag.
+	var tag string
+	if t := consumeToken(tokenKindIdent); t != nil {
+		tag = t.val
+	}
+
+	if tag != "" && tokens[0].val != "{" {
+		ty := findTag(tag)
+		if ty == nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Unknown struct tag: %s\n", tag)
+			os.Exit(1)
+		}
+		return ty
+	}
 
 	expect("{")
 
@@ -352,7 +386,14 @@ func structDecl() *typ {
 		}
 	}
 
-	return newStructType(members)
+	ty := newStructType(members)
+
+	if tag != "" {
+		ty.name = tag
+		pushTagScope(ty)
+	}
+
+	return ty
 }
 
 // declarator = "*"* ident type-suffix
@@ -604,7 +645,7 @@ func unary() expression {
 	}
 }
 
-// postfix = primary ("[" expr "]" | "." ident)*
+// postfix = primary ("[" expr "]" | "." ident | "->" ident)*
 func postfix() expression {
 	ret := primary()
 
@@ -617,6 +658,11 @@ func postfix() expression {
 
 		if consume(".") {
 			ret = structRef(ret)
+			continue
+		}
+
+		if consume("->") {
+			ret = structRef(&derefNode{child: ret})
 			continue
 		}
 
