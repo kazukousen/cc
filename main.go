@@ -5,8 +5,6 @@ import (
 	"os"
 )
 
-var userIn string
-var in string
 var tokens []*token
 var locals []*obj
 
@@ -16,11 +14,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	userIn = os.Args[1]
-
-	in = os.Args[1]
-
-	tokenize()
+	tokenizeFile(os.Args[1])
 	prog := parse()
 
 	codegen(prog)

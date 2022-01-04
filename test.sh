@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cat <<EOF | gcc -xc -c -o tmp2.o -
 int ret3() { return 3; }
 int ret5() { return 5; }
@@ -8,12 +10,11 @@ int add6(int a, int b, int c, int d, int e, int f) {
 }
 EOF
 
-#!/bin/bash
 assert() {
   expected="$1"
   input="$2"
 
-  ./cc "$input" > tmp.s
+  echo "$input" > tmp.c && ./cc tmp.c > tmp.s || exit
   if [ "$?" != 0 ]; then
     echo "$input => compile failed"
     exit 1
