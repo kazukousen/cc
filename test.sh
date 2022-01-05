@@ -53,6 +53,8 @@ assert 1 'int main() { struct {char a; char b;} x[3]; char *p = x; p[1] = 1; ret
 assert 2 'int main() { struct {char a; char b;} x[3]; char *p = x; p[2] = 2; return x[1].a; }'
 assert 3 'int main() { struct {char a; char b;} x[3]; char *p = x; p[3] = 3; return x[1].b; }'
 
+assert 7 'int main() {struct {char a[3]; char b[5];} x; char *p = &x; x.b[0] = 7; return p[3];}'
+
 assert 2 'int main() { int x=2; { int x=3; } return x; }'
 assert 2 'int main() { int x=2; { int x=3; } { int y=4; return x; }}'
 assert 3 'int main() { int x=2; { x=3; } return x; }'

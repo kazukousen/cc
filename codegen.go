@@ -82,7 +82,7 @@ func gen(n interface{}) {
 	case *assignNode:
 		genAddr(n.lhs)
 		gen(n.rhs)
-		store()
+		store(n.getType())
 		return
 	case *ifStmtNode:
 		gen(n.cond)
@@ -231,9 +231,13 @@ func load(ty *typ) {
 	}
 }
 
-func store() {
+func store(ty *typ) {
 	fmt.Printf("	pop rdi\n")
 	fmt.Printf("	pop rax\n")
-	fmt.Printf("	mov [rax], rdi\n")
+	if ty.size == 1 {
+		fmt.Printf("	mov [rax], dil\n")
+	} else {
+		fmt.Printf("	mov [rax], rdi\n")
+	}
 	fmt.Printf("	push rdi\n") // e.g. a=b=3
 }
